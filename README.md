@@ -179,10 +179,6 @@ seller and buys nothing.
 - **The untrusted-account list.** `engine/book.py` ships `UNTRUSTED` empty. The live engine
   listed two accounts there, so a backtest run from this repository will not match the
   reported numbers exactly.
-- **The per-group backtest** over goods that were collected but never traded (removed
-  with those goods; `load_panel(scope="all")` raises here).
-- Private planning notes. Some docs still cite them (`handoff.md`, `docs/history/`,
-  `docs/extra/`, `master-plan.md`, `scraping.md`); those files are not in this copy.
 
 ## Limits
 
