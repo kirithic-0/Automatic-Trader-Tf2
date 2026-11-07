@@ -163,7 +163,7 @@ seller and buys nothing.
 | `sync/` | the gRPC replica sync: `server.py` (VM), `pull.py` and `fetch_book.py` (PC), `tables.py` (per-table mode) |
 | `backpack/engine/` | the analysis engine: `book.py` (the read rules), `panel.py`, `features.py`, `forecast/` (the model), `listings.py`, `exits.py`, `replay.py`, `screens/` (the CLI: `python -m engine`) |
 | `agent/` | the Node agent: `run.js`, `lib/` (cycle, offers, ledger, limits, reconcile, ...), `test/` |
-| `docs/` | the schema and its read rules (`data-model.md`), the model and every backtest (`forecast-model.md`), the bot registry (`bots.md`), module interfaces (`code-base.md`), the verdicts (`findings-index.md`), two ADRs |
+| `docs/` | the schema and its read rules (`data-model.md`), the model and every backtest (`forecast-model.md`), the bot registry (`bots.md`), module interfaces (`code-base.md`), the verdicts (`findings-index.md`), three ADRs (`adr/`: the scrape queue, the analysis engine, the buy-level forecast) |
 | `research/` | write-ups of the experiments that were rejected (the scripts are not included) |
 | `deploy/azure/` | the VM setup and the systemd units |
 | `sample/` | the anonymised sample and the script that built it |
