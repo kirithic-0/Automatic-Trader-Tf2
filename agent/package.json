@@ -1,0 +1,19 @@
+{
+  "name": "tf2-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Stage 6 taker agent (Node, runs on the user's PC): the live agent (run.js), the PC authenticator, the ledger.",
+  "type": "commonjs",
+  "scripts": {
+    "setup-2fa": "node setup_2fa.js",
+    "code": "node code.js",
+    "confirm": "node confirm.js",
+    "start": "node run.js"
+  },
+  "dependencies": {
+    "steam-session": "^1.9.4",
+    "steam-totp": "^2.1.2",
+    "steam-tradeoffer-manager": "^2.13.0",
+    "steamcommunity": "^3.50.3"
+  }
+}

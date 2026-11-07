@@ -1,0 +1,21 @@
+# The collector as a systemd service on a Linux VM. The live service ran the pass loop
+# every hour (`--watch 3600`) with the site transport, which is not in this repository;
+# this unit runs the public pass loop over a stored database instead. systemd restarts
+# it if it dies.
+#
+# Installed by setup_vm.sh; logs: journalctl -u collector -f
+[Unit]
+Description=TF2 order-book collector (scrape_run.py)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/opt/automatic-trader/collector
+Environment=PYTHONIOENCODING=utf-8
+ExecStart=/opt/automatic-trader/.venv/bin/python -u scrape_run.py --source ../sample/sample.db --db trading_app.db --quiet
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

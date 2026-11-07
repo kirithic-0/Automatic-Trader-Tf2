@@ -1,0 +1,36 @@
+# Python / Node
+__pycache__/
+*.pyc
+.venv/
+venv/
+node_modules/
+.pytest_cache/
+
+# secrets never belong in the repo (the agent keeps its Steam secrets in %USERPROFILE%\.steam-bot)
+.env
+*.maFile*
+*.pem
+agent/STOP
+agent/agent.db*
+agent/*.log
+
+# databases: only the anonymised sample is committed
+*.db
+*.db-wal
+*.db-shm
+!sample/sample.db
+
+# the engine's disposable read caches (rebuilt from the db on the next run)
+backpack/engine_cache/
+backpack/engine_cache_app/
+**/engine_cache_*/
+
+# generated pages and logs
+*.log
+logs/
+engine_dashboard.html
+item_timeseries.html
+backpack/html/
+
+# the collector's held-item watchlist (local state)
+collector/watchlist.json

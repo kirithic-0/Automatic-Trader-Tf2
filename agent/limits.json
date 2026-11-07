@@ -1,0 +1,19 @@
+{
+	"_note": "The live agent's limits (lib/limits.js). User, 2026-10-26: the first run holds at most 2 keys (~130 ref + 20 rec + 20 scrap of metal), buys stop below 75% won over the last 20 sales, 3 bots a trade, 30 s each, 15 min to approve. The daily loss stop was removed 2026-10-28 (user: not a safety limit). max_new_buys_per_pass 10 is the model's own k. target_rec / target_scrap (user, 2026-10-30): every buy and sale picks its metal so our reclaimed / scrap tend to 15 / 10. 2026-10-30 (user): max_trade_keys 2 (picks up to 2 keys, p_up >= 0.65: engine AGENT_RULE); the key<->metal rebalance keeps metal between 0.5 key under and 1.5 keys over what buys may still spend (key_band_low / key_band_high), at most max_conversions keys a cycle (lib/convert.js); max_metal_keys 3: the metal it keeps is sized from at most 3 keys of room, the rest stays keys. 2026-11-07 (user): max_keys_in_play 0 -- the agent is retired, so no buy can pass; sells are unaffected.",
+	"max_open_positions": 100,
+	"max_keys_in_play": 0,
+	"max_trade_keys": 2,
+	"max_new_buys_per_pass": 10,
+	"win_window": 20,
+	"min_win_rate": 0.75,
+	"max_tries": 3,
+	"bot_wait_s": 30,
+	"poll_ms": 3000,
+	"approve_wait_s": 900,
+	"target_rec": 15,
+	"target_scrap": 10,
+	"key_band_low": 0.5,
+	"key_band_high": 1.5,
+	"max_conversions": 3,
+	"max_metal_keys": 3
+}

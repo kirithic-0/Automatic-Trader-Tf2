@@ -1,0 +1,819 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ratchet engine</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f6f2; --card: #ffffff; --fg: #1c1c1a; --mut: #74726b; --line: #e3e1da;
+    --soft: #efede7; --acc: #2f6fdb; --ask: #cf7a22; --new: #b0399a; --good: #2e8b57;
+    --bar: #2f6fdb; --bar2: #9aa7bd; --hover: #f1f5fd; --bad: #d03b3b; --fen: #1f9d8f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #151514; --card: #1e1e1c; --fg: #eeede9; --mut: #97958d; --line: #33332f;
+      --soft: #262623; --acc: #6f9cf0; --ask: #e39a4f; --new: #d86cc4; --good: #5cbf85;
+      --bar: #6f9cf0; --bar2: #5d6679; --hover: #232a36; --bad: #f0706a; --fen: #4cc7b8; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg);
+    border-bottom: 1px solid var(--line); }
+  .top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px;
+    padding: 14px 20px 8px; }
+  h1 { font-size: 17px; font-weight: 600; margin: 0; }
+  .meta { color: var(--mut); font-size: 12.5px; }
+  .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden;
+    margin-left: auto; }
+  .seg button { border: 0; background: var(--card); color: var(--fg); padding: 6px 12px;
+    font: inherit; font-size: 13px; cursor: pointer; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button.on { background: var(--fg); color: var(--bg); }
+  nav { display: flex; gap: 2px; padding: 0 14px; overflow-x: auto; }
+  nav button { border: 0; background: none; color: var(--mut); font: inherit; padding: 8px 10px;
+    border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
+  nav button.on { color: var(--fg); border-bottom-color: var(--fg); }
+  main { padding: 18px 20px 60px; max-width: 1280px; margin: 0 auto; }
+  section { display: none; } section.on { display: block; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 16px; margin-bottom: 14px; }
+  .lead { color: var(--mut); margin: 0 0 12px; max-width: 900px; }
+  .lead b { color: var(--fg); font-weight: 600; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;
+    margin-bottom: 14px; }
+  .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+  .kpi .v { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .k { color: var(--mut); font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-weight: 500; color: var(--mut); font-size: 12px; white-space: nowrap; position: sticky;
+    top: 0; background: var(--card); }
+  th.s { cursor: pointer; } th.s:hover { color: var(--fg); }
+  td.n, th.n { text-align: right; }
+  tbody tr:hover { background: var(--hover); }
+  .wrap { overflow-x: auto; }
+  a.it { color: var(--fg); text-decoration: none; border-bottom: 1px dotted var(--mut); cursor: pointer; }
+  a.it:hover { color: var(--acc); border-bottom-color: var(--acc); }
+  .chip { display: inline-block; font-size: 11.5px; padding: 1px 7px; border-radius: 99px;
+    background: var(--soft); color: var(--mut); margin: 1px 3px 1px 0; white-space: nowrap; }
+  .chip.hi { color: var(--acc); } .chip.lo { color: var(--ask); }
+  .badge { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--new); color: #fff; }
+  .muted { color: var(--mut); }
+  .pos { color: var(--good); }
+  .ctl { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin-bottom: 10px;
+    font-size: 13px; color: var(--mut); }
+  .ctl input[type=text], .ctl input[type=number], .ctl select { font: inherit; color: var(--fg);
+    background: var(--card); border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+  .ctl input[type=number] { width: 80px; }
+  .sbar { display: inline-block; height: 8px; border-radius: 4px; background: var(--acc);
+    vertical-align: middle; margin-right: 6px; }
+  .lift { position: relative; height: 14px; width: 160px; background: var(--soft); border-radius: 3px;
+    display: inline-block; vertical-align: middle; }
+  .lift i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--bar2); }
+  .lift i.on { background: var(--bar); }
+  .lift u { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--fg); opacity: .35; }
+  .lv { display: inline-block; width: 44px; text-align: right; margin-left: 6px; font-size: 12.5px; }
+  .pct { position: relative; width: 110px; height: 8px; background: var(--soft); border-radius: 4px;
+    display: inline-block; vertical-align: middle; }
+  .pct i { position: absolute; top: -2px; width: 3px; height: 12px; border-radius: 2px; background: var(--fg); }
+  .bt { display: grid; grid-template-columns: 90px 1fr 120px; gap: 6px 12px; align-items: center;
+    max-width: 640px; }
+  .bt .b { height: 14px; background: var(--acc); border-radius: 3px; }
+  .bt .base { height: 14px; background: var(--bar2); border-radius: 3px; }
+  #itemgrid { display: grid; grid-template-columns: 290px 1fr; gap: 14px; align-items: start; }
+  #ilist { max-height: calc(100vh - 210px); overflow-y: auto; margin-top: 8px; }
+  #ilist div { padding: 5px 8px; border-radius: 6px; cursor: pointer; display: flex;
+    justify-content: space-between; gap: 8px; }
+  #ilist div:hover { background: var(--hover); }
+  #ilist div.on { background: var(--soft); font-weight: 500; }
+  #ilist span.s { color: var(--mut); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .stats { display: flex; flex-wrap: wrap; gap: 6px 22px; margin: 4px 0 10px; }
+  .stats div { font-size: 12px; color: var(--mut); }
+  .stats b { display: block; font-size: 16px; color: var(--fg); font-weight: 600;
+    font-variant-numeric: tabular-nums; }
+  .chartwrap { position: relative; }
+  svg.chart { width: 100%; height: auto; display: block; }
+  svg text { fill: var(--mut); font-size: 11px; }
+  .grid { stroke: var(--line); }
+  .tip { position: absolute; pointer-events: none; background: var(--card); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 10px; font-size: 12px; box-shadow: 0 4px 14px rgba(0,0,0,.12);
+    white-space: nowrap; display: none; font-variant-numeric: tabular-nums; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: var(--mut); margin: 6px 0; }
+  .legend label { cursor: pointer; } .legend input { margin: 0 4px 0 0; vertical-align: middle; }
+  .sw { display: inline-block; width: 16px; height: 0; border-top: 2px solid; vertical-align: middle;
+    margin-right: 5px; }
+  .sw.d { border-top-style: dashed; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle;
+    margin-right: 5px; }
+  .empty { color: var(--mut); padding: 30px; text-align: center; }
+  .bookgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .bookgrid h3 { font-size: 13.5px; margin: 0 0 4px; font-weight: 600; }
+  .bsum { font-size: 12px; color: var(--mut); margin-bottom: 8px; }
+  .bsum b { color: var(--fg); font-weight: 600; }
+  tr.drop td { opacity: .55; }
+  tr.drop td.why { opacity: 1; color: var(--ask); }
+  tr.used td { font-weight: 600; }
+  td.why { font-size: 12px; }
+  .role { font-size: 11px; padding: 0 6px; border-radius: 99px; background: var(--acc); color: #fff; margin-left: 4px; }
+  .tag { font-size: 10.5px; padding: 0 5px; border-radius: 4px; border: 1px solid var(--line); color: var(--mut);
+    margin-right: 3px; white-space: nowrap; }
+  .tag.f { border-color: var(--ask); color: var(--ask); }
+  .user { max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block;
+    vertical-align: bottom; }
+  .pager { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pager button { font: inherit; font-size: 13px; padding: 4px 10px; border: 1px solid var(--line);
+    background: var(--card); color: var(--fg); border-radius: 7px; cursor: pointer; }
+  .pager button:disabled { opacity: .4; cursor: default; }
+  .note { font-size: 12.5px; background: var(--soft); border-radius: 8px; padding: 8px 12px; margin: 8px 0; }
+  code { font-size: 12.5px; background: var(--soft); padding: 1px 5px; border-radius: 4px; }
+  @media (max-width: 1000px) { .bookgrid { grid-template-columns: 1fr; } }
+  @media (max-width: 820px) {
+    #itemgrid { grid-template-columns: 1fr; } #ilist { max-height: 240px; }
+    .top { padding: 12px 16px 6px; } main { padding: 14px 16px 50px; } .seg { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Ratchet engine</h1>
+    <span class="meta" id="meta"></span>
+    <div class="seg" role="group" aria-label="event definition">
+      <button data-def="any" class="on" title="top-1 fenced bid +2%, holds the next pass">Any step</button>
+      <button data-def="new" title="a step that also beats the item's prior-24h high bid">New high</button>
+    </div>
+  </div>
+  <nav id="tabs">
+    <button data-tab="forecast" id="tab-forecast" hidden>Forecast</button>
+    <button data-tab="watch" class="on">Watchlist</button>
+    <button data-tab="signals">Signals</button>
+    <button data-tab="events">Events</button>
+    <button data-tab="movers">Movers</button>
+    <button data-tab="climbers">Climbers</button>
+    <button data-tab="audit">Book audit</button>
+    <button data-tab="item">Item explorer</button>
+  </nav>
+</header>
+<main>
+  <section id="s-forecast"></section>
+  <section id="s-watch" class="on"></section>
+  <section id="s-signals"></section>
+  <section id="s-events">
+    <div class="ctl">
+      <label>last <select id="ev-h"><option>6</option><option selected>24</option><option>72</option></select> h</label>
+      <label><input type="checkbox" id="ev-new"> new highs only</label>
+      <input type="text" id="ev-q" placeholder="filter items…">
+      <span id="ev-n"></span>
+    </div>
+    <div class="card wrap" id="ev-t"></div>
+  </section>
+  <section id="s-movers">
+    <p class="lead">Fenced top-5 bid, <b>first record → latest</b>, for every item. Leave the band open for a
+      gainers list; set it (e.g. 10–30%) plus a max spread for the movers screen.</p>
+    <div class="ctl">
+      <label>rise ≥ <input type="number" id="mv-lo" value="0"> %</label>
+      <label>≤ <input type="number" id="mv-hi" placeholder="any"> %</label>
+      <label>top-5 spread ≤ <input type="number" id="mv-sp" placeholder="any"> %</label>
+      <input type="text" id="mv-q" placeholder="filter items…">
+      <span id="mv-n"></span>
+    </div>
+    <div class="card wrap" id="mv-t"></div>
+  </section>
+  <section id="s-climbers"></section>
+  <section id="s-audit"></section>
+  <section id="s-item">
+    <div id="itemgrid">
+      <div class="card">
+        <input type="text" id="iq" placeholder="search all items…" style="width:100%;font:inherit;padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:var(--card);color:var(--fg)">
+        <div class="muted" style="font-size:12px;margin-top:6px">sorted by current score · ↑↓ to move</div>
+        <div id="ilist"></div>
+      </div>
+      <div id="ipanel"></div>
+    </div>
+  </section>
+</main>
+<script>
+const D = /*DATA*/null;
+const F = D.features.map(x => x.f);
+const FI = Object.fromEntries(F.map((f, i) => [f, i]));
+const DOC = Object.fromEntries(D.features.map(x => [x.f, x.doc]));
+const T0 = Date.parse(D.meta.t0);
+const H = D.meta.horizon;
+const S = D.series;
+const st = { def: "any", tab: "watch", sid: null, bi: null, range: "all", sort: {},
+  lay: { fill: true, med: true, fence: true, dots: true } };
+const PASS_AT = Object.fromEntries(D.meta.passes.map(([p, h]) => [h.toFixed(2), p]));
+const BOOKS = new Map();
+const HISTS = new Map();     // sid -> /api/history (every listing per pass + fence medians)
+const DEPTH = D.meta.depth || 7;
+
+// ---------- formatting ----------
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const nul = x => x === null || x === undefined || Number.isNaN(x);
+const fk = x => nul(x) ? "–" : (Math.abs(x) < 1 ? x.toFixed(4) : x.toFixed(3));
+const fp = (x, d = 1) => nul(x) ? "–" : (x * 100).toFixed(d) + "%";
+const fs = (x, d = 1) => nul(x) ? "–" : (x > 0 ? "+" : "") + (x * 100).toFixed(d) + "%";
+const fx = (x, d = 2) => nul(x) ? "–" : x.toFixed(d) + "×";
+const when = h => { const d = new Date(T0 + h * 3.6e6).toISOString(); return d.slice(5, 10) + " " + d.slice(11, 16); };
+const fv = (f, v) => {
+  if (nul(v)) return "–";
+  if (/share|spread|chg|gap2|disp/.test(f)) return f.includes("chg") ? fs(v) : fp(v);
+  if (/^n_|steps|top_bot/.test(f)) return String(Math.round(v * 100) / 100);
+  if (f === "hours_since_step") return v.toFixed(0) + " h";
+  if (f === "bid1") return fk(v);
+  return v.toFixed(3);
+};
+const link = sid => `<a class="it" data-sid="${sid}">${esc(S[sid].l)}</a>`;
+// the bp.tf classifieds page the scraper reads for this book (bptf_scrape.classifieds_url,
+// liquid form) -- a plain link for the user's own browser; nothing here fetches it
+const bptf = sid => "https://backpack.tf/classifieds?" + new URLSearchParams({ item: S[sid].it, quality: S[sid].q,
+  tradable: 1, craftable: 1, australium: -1, killstreak_tier: 0, spell: "None" }).toString();
+const last = (arr) => { for (let i = arr.length - 1; i >= 0; i--) if (!nul(arr[i])) return arr[i]; return null; };
+const defn = () => D.defs[st.def];
+const kind = () => st.def === "new" ? "new-high step" : "step";
+
+// ---------- sortable table ----------
+function table(el, key, cols, rows, limit = 400) {
+  const s = st.sort[key] || { i: cols.findIndex(c => c.sort), d: -1 };
+  st.sort[key] = s;
+  if (s.i >= 0 && cols[s.i].val) {
+    const v = cols[s.i].val;
+    rows = rows.slice().sort((a, b) => {
+      const x = v(a), y = v(b);
+      if (nul(x)) return 1; if (nul(y)) return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * s.d;
+    });
+  }
+  const head = cols.map((c, i) => `<th class="${c.n ? "n " : ""}${c.val ? "s" : ""}" data-i="${i}">${c.h}${i === s.i ? (s.d < 0 ? " ↓" : " ↑") : ""}</th>`).join("");
+  const body = rows.slice(0, limit).map(r => "<tr>" + cols.map(c => `<td class="${c.n ? "n" : ""}">${c.td(r)}</td>`).join("") + "</tr>").join("");
+  el.innerHTML = rows.length ? `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>` +
+    (rows.length > limit ? `<div class="muted" style="padding:8px">showing ${limit} of ${rows.length}</div>` : "")
+    : `<div class="empty">nothing matches</div>`;
+  el.querySelectorAll("th.s").forEach(th => th.onclick = () => {
+    const i = +th.dataset.i; const cur = st.sort[key];
+    st.sort[key] = { i, d: cur.i === i ? -cur.d : -1 };
+    table(el, key, cols, rows, limit);
+  });
+}
+
+// ---------- header ----------
+function renderMeta() {
+  const m = D.meta;
+  document.getElementById("meta").textContent =
+    `${m.db || ""} · ${m.n_series.toLocaleString()} items · ${m.n_passes} passes · ${m.n_snap.toLocaleString()} snapshots · ` +
+    `${m.t0.slice(0, 10)} → ${m.last_t.slice(0, 16).replace("T", " ")} UTC · built ${m.generated.slice(0, 16).replace("T", " ")}`;
+}
+
+// ---------- watchlist ----------
+function renderWatch() {
+  const d = defn(), el = document.getElementById("s-watch");
+  if (!d.watch.length) {
+    el.innerHTML = `<div class="card empty">No feature clears the 1.5× lift bar for a ${kind()} within ${H}h yet — nothing to rank on.</div>`;
+    return;
+  }
+  const bt = d.backtest;
+  const p10 = bt && bt.prec.find(p => p[0] === 10);
+  el.innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="v">${fp(d.base)}</div><div class="k">base rate: any item makes a ${kind()} within ${H}h</div></div>
+      <div class="kpi"><div class="v">${p10 ? fp(p10[1]) : "–"}</div><div class="k">backtest: of the top 10 per pass, share that did</div></div>
+      <div class="kpi"><div class="v">${p10 ? fx(p10[2], 1) : "–"}</div><div class="k">…vs the base rate then (${bt ? fp(bt.base) : "–"})</div></div>
+      <div class="kpi"><div class="v">p${D.meta.last_pass}</div><div class="k">latest pass · ${D.meta.n_now.toLocaleString()} items in it</div></div>
+    </div>
+    <p class="lead">Items in the <b>latest pass</b> ranked by how much they look like they're about to make a
+      <b>${kind()}</b> in the next ${H}h. The score is the average in-pass rank on the features below (picked
+      because their tail precedes ${kind()}s ≥1.5× more often than usual) — not a trained model.
+      <b>Drivers</b> are the picked features this item sits in the tail of.</p>
+    <div class="ctl">scored on ${d.signals.map(s => `<span class="chip ${s.side === "high" ? "hi" : "lo"}" title="${esc(DOC[s.f])}">${s.side === "high" ? "▲" : "▼"} ${s.f} ${fx(s.lift, 1)}</span>`).join("")}</div>
+    <div class="card wrap" id="w-t"></div>`;
+  const rows = d.watch.map(([sid, score, drv], i) => ({ i: i + 1, sid, score, drv, s: S[sid] }));
+  table(document.getElementById("w-t"), "watch" + st.def, [
+    { h: "#", n: 1, td: r => r.i, val: r => r.i },
+    { h: "item", td: r => link(r.sid), val: r => r.s.l },
+    { h: "score", sort: 1, td: r => `<span class="sbar" style="width:${Math.round(r.score * 60)}px"></span>${r.score.toFixed(2)}`, val: r => r.score },
+    { h: "best bid", n: 1, td: r => fk(last(r.s.b)), val: r => last(r.s.b) },
+    { h: "best ask", n: 1, td: r => fk(last(r.s.a)), val: r => last(r.s.a) },
+    { h: "spread", n: 1, td: r => fp(r.s.fv[FI.spread]), val: r => r.s.fv[FI.spread] },
+    { h: "since step", n: 1, td: r => nul(r.s.fv[FI.hours_since_step]) ? "–" : r.s.fv[FI.hours_since_step].toFixed(0) + " h", val: r => r.s.fv[FI.hours_since_step] },
+    { h: "drivers", td: r => r.drv.map(f => `<span class="chip">${f}</span>`).join("") },
+  ], rows, 150);
+}
+
+// ---------- signals ----------
+function liftBar(lift, on, max) {
+  if (nul(lift)) return `<span class="lift"></span><span class="lv muted">–</span>`;
+  const w = Math.min(lift / max, 1) * 100;
+  return `<span class="lift"><i class="${on ? "on" : ""}" style="width:${w}%"></i>` +
+    `<u style="left:${100 / max}%" title="1× = base rate"></u><u style="left:${150 / max}%" title="1.5× = pick bar"></u></span>` +
+    `<span class="lv">${fx(lift, 2)}</span>`;
+}
+function renderSignals() {
+  const d = defn(), el = document.getElementById("s-signals");
+  const max = Math.max(3, ...d.lifts.flatMap(r => [r.hl || 0, r.ll || 0]));
+  const bt = d.backtest;
+  const btHtml = !bt ? `<div class="muted">not enough history to split</div>` : !bt.prec.length ?
+    `<div class="muted">no feature cleared the bar on the training passes</div>` : `
+      <div class="bt">
+        ${bt.prec.map(([k, p, l]) => `
+          <div>top ${k}/pass</div><div><div class="b" style="width:${Math.min(p / Math.max(...bt.prec.map(x => x[1])), 1) * 100}%"></div></div><div>${fp(p)} <span class="muted">${fx(l, 1)}</span></div>`).join("")}
+        <div>random</div><div><div class="base" style="width:${bt.base / Math.max(...bt.prec.map(x => x[1])) * 100}%"></div></div><div>${fp(bt.base)} <span class="muted">base</span></div>
+      </div>
+      <p class="muted" style="margin:10px 0 0;font-size:12.5px">Features picked on passes before ${bt.split.slice(0, 16).replace("T", " ")} UTC only
+        (${bt.signals.join(", ") || "none"}), then used to rank each of the ${bt.passes} later passes.</p>`;
+  el.innerHTML = `
+    <p class="lead">For each feature: how often a <b>${kind()}</b> follows within ${H}h when the feature is in its
+      <b>top 10%</b> vs its <b>bottom 10%</b>, divided by the base rate (${fp(d.base)} over ${d.n_known.toLocaleString()} labelled snapshots).
+      1× = no information. Tails at ≥1.5× are <b>picked</b> (blue) and drive the watchlist.</p>
+    <div class="card"><div style="font-weight:600;margin-bottom:8px">Backtest — does the score rank well out of sample?</div>${btHtml}</div>
+    <div class="card wrap" id="sg-t"></div>`;
+  const rows = d.lifts.map(r => ({ ...r, best: Math.max(r.hl || 0, r.ll || 0) }));
+  table(document.getElementById("sg-t"), "sig" + st.def, [
+    { h: "feature", td: r => `<div>${r.f}</div><div class="muted" style="font-size:12px">${esc(DOC[r.f])}</div>`, val: r => r.f },
+    { h: "coverage", n: 1, td: r => fp(r.cover, 0), val: r => r.cover },
+    { h: "top 10% → lift", td: r => liftBar(r.hl, r.chosen === "high", max), val: r => r.hl },
+    { h: "rate", n: 1, td: r => fp(r.hr), val: r => r.hr },
+    { h: "bottom 10% → lift", td: r => liftBar(r.ll, r.chosen === "low", max), val: r => r.ll },
+    { h: "rate", n: 1, td: r => fp(r.lr), val: r => r.lr },
+    { h: "picked", sort: 1, td: r => r.chosen ? `<span class="chip ${r.chosen === "high" ? "hi" : "lo"}">${r.chosen === "high" ? "▲ high" : "▼ low"}</span>` : "", val: r => r.best },
+  ], rows);
+}
+
+// ---------- events ----------
+function renderEvents() {
+  const h = +document.getElementById("ev-h").value, onlyNew = document.getElementById("ev-new").checked;
+  const q = document.getElementById("ev-q").value.trim().toLowerCase();
+  const tmax = Math.max(...D.events.map(e => e[1]), 0);
+  const rows = D.events.filter(e => e[1] >= tmax - h && (!onlyNew || e[5]) && (!q || S[e[0]].l.toLowerCase().includes(q)))
+    .map(([sid, t, before, after, r, nh]) => ({ sid, t, before, after, r, nh }));
+  document.getElementById("ev-n").textContent = `${rows.length} ${onlyNew ? "new-high step" : "step"}s`;
+  table(document.getElementById("ev-t"), "ev", [
+    { h: "pass time (UTC)", sort: 1, td: r => when(r.t), val: r => r.t },
+    { h: "item", td: r => link(r.sid), val: r => S[r.sid].l },
+    { h: "bid before", n: 1, td: r => fk(r.before), val: r => r.before },
+    { h: "after", n: 1, td: r => fk(r.after), val: r => r.after },
+    { h: "rise", n: 1, td: r => `<span class="pos">${fs(r.r)}</span>`, val: r => r.r },
+    { h: "", td: r => r.nh ? `<span class="badge">new high</span>` : "" },
+  ], rows, 500);
+}
+
+// ---------- movers ----------
+function renderMovers() {
+  const lo = parseFloat(document.getElementById("mv-lo").value), hi = parseFloat(document.getElementById("mv-hi").value);
+  const sp = parseFloat(document.getElementById("mv-sp").value), q = document.getElementById("mv-q").value.trim().toLowerCase();
+  const rows = D.movers.map(([sid, a, b, pct, disp, n]) => ({ sid, a, b, pct, disp, n }))
+    .filter(r => (isNaN(lo) || r.pct * 100 >= lo) && (isNaN(hi) || r.pct * 100 <= hi) &&
+      (isNaN(sp) || (!nul(r.disp) && r.disp * 100 <= sp)) && (!q || S[r.sid].l.toLowerCase().includes(q)));
+  document.getElementById("mv-n").textContent = `${rows.length} items`;
+  table(document.getElementById("mv-t"), "mv", [
+    { h: "item", td: r => link(r.sid), val: r => S[r.sid].l },
+    { h: "first", n: 1, td: r => fk(r.a), val: r => r.a },
+    { h: "now", n: 1, td: r => fk(r.b), val: r => r.b },
+    { h: "change", n: 1, sort: 1, td: r => `<span class="${r.pct > 0 ? "pos" : ""}">${fs(r.pct)}</span>`, val: r => r.pct },
+    { h: "top-5 spread", n: 1, td: r => fp(r.disp), val: r => r.disp },
+    { h: "passes", n: 1, td: r => r.n, val: r => r.n },
+  ], rows);
+}
+
+// ---------- climbers ----------
+function renderClimbers() {
+  const el = document.getElementById("s-climbers");
+  el.innerHTML = `<p class="lead"><b>Tight gap + bid-led climb</b>: the median bid–ask gap is ≤12%, both the fenced
+    top-5 bid and ask rose ≥3% with a positive trend, and the bid's changes lead the ask's.
+    Score = co-rise × tightness × lead.</p><div class="card wrap" id="cl-t"></div>`;
+  const rows = D.climbers.map(([sid, score, gap, br, ar, ll, lr, b, a]) => ({ sid, score, gap, br, ar, ll, lr, b, a }));
+  table(document.getElementById("cl-t"), "cl", [
+    { h: "item", td: r => link(r.sid), val: r => S[r.sid].l },
+    { h: "score", n: 1, sort: 1, td: r => r.score.toFixed(1), val: r => r.score },
+    { h: "gap", n: 1, td: r => fp(r.gap), val: r => r.gap },
+    { h: "bid rise", n: 1, td: r => fs(r.br), val: r => r.br },
+    { h: "ask rise", n: 1, td: r => fs(r.ar), val: r => r.ar },
+    { h: "lead", n: 1, td: r => nul(r.lr) ? "–" : (r.ll === 0 ? "same pass" : `+${r.ll} pass`), val: r => r.ll },
+    { h: "r", n: 1, td: r => nul(r.lr) ? "–" : r.lr.toFixed(2), val: r => r.lr },
+    { h: "bid now", n: 1, td: r => fk(r.b), val: r => r.b },
+    { h: "ask now", n: 1, td: r => fk(r.a), val: r => r.a },
+  ], rows);
+}
+
+// ---------- item explorer ----------
+let listOrder = [];
+function scoreOf(s) { return s[st.def === "new" ? "sn" : "sa"]; }
+function renderList() {
+  const q = document.getElementById("iq").value.trim().toLowerCase();
+  listOrder = S.map((s, i) => i).filter(i => !q || S[i].l.toLowerCase().includes(q))
+    .sort((a, b) => (scoreOf(S[b]) ?? -1) - (scoreOf(S[a]) ?? -1));
+  const el = document.getElementById("ilist");
+  el.innerHTML = listOrder.slice(0, 400).map(i =>
+    `<div data-pick="${i}" class="${i === st.sid ? "on" : ""}"><span>${esc(S[i].l)}</span><span class="s">${nul(scoreOf(S[i])) ? "" : scoreOf(S[i]).toFixed(2)}</span></div>`).join("") +
+    (listOrder.length > 400 ? `<div class="muted">…${listOrder.length - 400} more, refine the search</div>` : "");
+}
+function inTail(sig, v) {
+  if (nul(v)) return false;
+  if (sig.side === "high") return sig.strict ? v > sig.cut : v >= sig.cut;
+  return sig.strict ? v < sig.cut : v <= sig.cut;
+}
+function renderItem() {
+  const el = document.getElementById("ipanel");
+  if (st.sid === null) { el.innerHTML = `<div class="card empty">Pick an item on the left, or click any item name elsewhere.</div>`; return; }
+  const s = S[st.sid], d = defn();
+  const nStep = s.e.length, nNew = s.e.filter(e => e[1] === 2).length;
+  const sigBy = Object.fromEntries(d.signals.map(x => [x.f, x]));
+  el.innerHTML = `
+    <div class="card">
+      <div style="font-size:16px;font-weight:600">${esc(s.l)}</div>
+      <div class="stats">
+        <div><b>${fk(last(s.b))}</b>best bid</div><div><b>${fk(last(s.a))}</b>best ask</div>
+        <div><b>${fp(s.fv[FI.spread])}</b>spread</div>
+        <div><b>${fk(last(s.pb))} / ${fk(last(s.ps))}</b>pricedb buy / sell</div>
+        <div><b>${nul(s.sa) ? "–" : s.sa.toFixed(2)} / ${nul(s.sn) ? "–" : s.sn.toFixed(2)}</b>score: any / new high</div>
+        <div><b>${nStep} / ${nNew}</b>steps / new highs</div>
+        <div><b>${when(s.lt)}</b>latest pass seen</div>
+      </div>
+      <div class="ctl" style="margin:0">range
+        <select id="rng">${[["all", "all"], ["168", "7 days"], ["72", "72 h"], ["24", "24 h"]].map(([v, l]) => `<option value="${v}" ${st.range === v ? "selected" : ""}>${l}</option>`).join("")}</select>
+      </div>
+      <div class="legend">
+        <span><i class="sw" style="border-color:var(--acc)"></i>best bid</span>
+        <span><i class="sw" style="border-color:var(--ask)"></i>best ask</span>
+        <span><i class="sw d" style="border-color:var(--acc)"></i>pricedb buy</span>
+        <span><i class="sw d" style="border-color:var(--ask)"></i>pricedb sell</span>
+        <span><i class="dot" style="border:2px solid var(--acc)"></i>step</span>
+        <span><i class="dot" style="background:var(--new)"></i>new high</span>
+      </div>
+      <div class="legend">
+        <label><input type="checkbox" data-lay="fill" ${st.lay.fill ? "checked" : ""}><i class="sw" style="border-color:var(--good);border-top-style:dotted"></i>bid1_fill (what a sale gets)</label>
+        <label><input type="checkbox" data-lay="med" ${st.lay.med ? "checked" : ""}><i class="sw" style="border-color:var(--acc);opacity:.5"></i><i class="sw" style="border-color:var(--ask);opacity:.5"></i>bid_med / ask_med (the forecast's level)</label>
+        <label><input type="checkbox" data-lay="fence" ${st.lay.fence ? "checked" : ""}><i class="sw" style="border-color:var(--fen)"></i>fence median, top ${DEPTH}<i class="sw d" style="border-color:var(--fen);margin-left:6px"></i>over all listings<i class="sw" style="border-color:var(--bad);border-top-style:dotted;margin-left:6px"></i>buy cap 1.02× (trust 0)</label>
+        <label><input type="checkbox" data-lay="dots" ${st.lay.dots ? "checked" : ""}>every listing:
+          <i class="dot" style="background:var(--acc)"></i>buy kept <i class="dot" style="background:var(--ask)"></i>sell kept
+          <i class="dot" style="border:1.5px solid var(--bad)"></i>fenced high <i class="dot" style="border:1.5px solid var(--mut)"></i>fenced low
+          <i class="dot" style="background:var(--line)"></i>flag / duplicate</label>
+        ${D.meta.live ? "" : `<span class="muted">(fence medians + listings need <code>--serve</code>)</span>`}
+      </div>
+      <div class="chartwrap"><svg class="chart" id="chart"></svg><div class="tip" id="tip"></div></div>
+    </div>
+    <div class="card" id="book"></div>
+    <div class="card wrap">
+      <div style="font-weight:600;margin-bottom:4px">Features at the latest pass</div>
+      <div class="muted" style="font-size:12.5px;margin-bottom:8px">Percentile = where this item sits among all items in that pass.
+        <span class="chip hi">▲</span><span class="chip lo">▼</span> = a picked ${kind()} signal; bold = this item is in its tail.</div>
+      <table><thead><tr><th>feature</th><th class="n">value</th><th>percentile in pass</th><th>signal</th></tr></thead><tbody>
+      ${F.map((f, i) => { const g = sigBy[f], hit = g && inTail(g, s.fv[i]); return `<tr>
+        <td${hit ? ' style="font-weight:600"' : ""}>${f}<div class="muted" style="font-size:12px;font-weight:400">${esc(DOC[f])}</div></td>
+        <td class="n">${fv(f, s.fv[i])}</td>
+        <td>${nul(s.fp[i]) ? "–" : `<span class="pct"><i style="left:calc(${s.fp[i] * 100}% - 1px)"></i></span> <span class="muted">${Math.round(s.fp[i] * 100)}</span>`}</td>
+        <td>${g ? `<span class="chip ${g.side === "high" ? "hi" : "lo"}">${g.side === "high" ? "▲" : "▼"} ${fx(g.lift, 1)}</span>${hit ? " in tail" : ""}` : ""}</td></tr>`; }).join("")}
+      </tbody></table>
+    </div>`;
+  document.getElementById("rng").onchange = e => { st.range = e.target.value; drawChart(); };
+  el.querySelectorAll("[data-lay]").forEach(c => c.onchange = () => { st.lay[c.dataset.lay] = c.checked; drawChart(); });
+  if (st.bi === null || st.bi >= s.t.length) st.bi = s.t.length - 1;
+  drawChart();
+  renderBook();
+  loadHistory(st.sid);
+}
+function loadHistory(sid) {
+  if (!D.meta.live || HISTS.has(sid)) return;
+  HISTS.set(sid, null);                                   // in flight
+  const it = S[sid];
+  fetch(`/api/history?item=${encodeURIComponent(it.it)}&q=${it.q}&v=${it.v === null ? "null" : it.v}`)
+    .then(r => r.json()).then(h => {
+      const byPass = {};
+      for (const [p, bm, bma, sm, sma, pts] of h.passes || []) byPass[p] = { bm, bma, sm, sma, pts };
+      HISTS.set(sid, byPass);
+      if (st.sid === sid && st.tab === "item") drawChart();
+    }).catch(() => HISTS.delete(sid));
+}
+function drawChart() {
+  const s = S[st.sid], svg = document.getElementById("chart"), tip = document.getElementById("tip");
+  const W = 960, Hh = 340, L = 58, R = 14, T = 12, B = 28;
+  const tmax = s.t[s.t.length - 1];
+  const lo = st.range === "all" ? -Infinity : tmax - +st.range;
+  const idx = s.t.map((t, i) => i).filter(i => s.t[i] >= lo);
+  if (!idx.length) { svg.innerHTML = ""; return; }
+  const HI = HISTS.get(st.sid) || null;
+  const hp = i => HI ? HI[PASS_AT[s.t[i].toFixed(2)]] : null;
+  const ys = idx.flatMap(i => {
+    const h = hp(i), v = [s.b[i], s.a[i], s.pb[i], s.ps[i]];
+    if (st.lay.med) v.push(s.bm[i], s.am[i]);
+    if (h && st.lay.fence) v.push(h.bm, h.sm);
+    if (h && st.lay.dots) for (const [, k, c] of h.pts) if (c === "k") v.push(k);
+    return v;
+  }).filter(v => !nul(v));
+  let y0 = Math.min(...ys), y1 = Math.max(...ys);
+  if (y0 === y1) { y0 *= 0.95; y1 *= 1.05; }
+  const pad = (y1 - y0) * 0.06; y0 = Math.max(0, y0 - pad); y1 += pad;
+  const x0 = s.t[idx[0]], x1 = Math.max(s.t[idx[idx.length - 1]], x0 + 1);
+  const X = t => L + (t - x0) / (x1 - x0) * (W - L - R), Y = v => T + (1 - (v - y0) / (y1 - y0)) * (Hh - T - B);
+  const path = arr => { let d = "", pen = false; for (const i of idx) { const v = arr[i]; if (nul(v)) { pen = false; continue; } d += (pen ? "L" : "M") + X(s.t[i]).toFixed(1) + " " + Y(v).toFixed(1); pen = true; } return d; };
+  const hpath = (key, k = 1) => path(s.t.map((_, i) => { const h = hp(i); return h && !nul(h[key]) ? h[key] * k : null; }));
+  const Yc = v => Math.min(Math.max(Y(v), T + 2), Hh - B - 2);           // clamp a far-off listing to the edge
+  let dots = "";
+  if (HI && st.lay.dots) for (const i of idx) {
+    const h = hp(i); if (!h) continue;
+    const x = X(s.t[i]).toFixed(1);
+    for (const [side, k, c] of h.pts) {
+      const y = Yc(k).toFixed(1);
+      if (c === "k") dots += `<circle cx="${x}" cy="${y}" r="2.3" fill="var(--${side === "b" ? "acc" : "ask"})" opacity=".55"/>`;
+      else if (c === "h") dots += `<circle cx="${x}" cy="${y}" r="2.8" fill="none" stroke="var(--bad)" stroke-width="1.2"/>`;
+      else if (c === "l") dots += `<circle cx="${x}" cy="${y}" r="2.8" fill="none" stroke="var(--mut)" stroke-width="1.2"/>`;
+      else dots += `<circle cx="${x}" cy="${y}" r="1.8" fill="var(--mut)" opacity=".35"/>`;
+    }
+  }
+  const lines = (st.lay.med ? `<path d="${path(s.bm)}" fill="none" stroke="var(--acc)" stroke-width="3" opacity=".25"/>` +
+      `<path d="${path(s.am)}" fill="none" stroke="var(--ask)" stroke-width="3" opacity=".25"/>` : "") +
+    (HI && st.lay.fence ? `<path d="${hpath("bm")}" fill="none" stroke="var(--fen)" stroke-width="1.4"/>` +
+      `<path d="${hpath("bma")}" fill="none" stroke="var(--fen)" stroke-width="1.2" stroke-dasharray="4 3"/>` +
+      `<path d="${hpath("sm")}" fill="none" stroke="var(--fen)" stroke-width="1.4" opacity=".6"/>` +
+      `<path d="${hpath("sma")}" fill="none" stroke="var(--fen)" stroke-width="1.2" stroke-dasharray="4 3" opacity=".6"/>` +
+      `<path d="${hpath("bm", 1.02)}" fill="none" stroke="var(--bad)" stroke-width="1" stroke-dasharray="1 3"/>` : "") +
+    (st.lay.fill ? `<path d="${path(s.bf)}" fill="none" stroke="var(--good)" stroke-width="1.6" stroke-dasharray="2 2"/>` : "");
+  let g = "";
+  for (let k = 0; k <= 4; k++) { const v = y0 + (y1 - y0) * k / 4, y = Y(v); g += `<line class="grid" x1="${L}" x2="${W - R}" y1="${y}" y2="${y}"/><text x="${L - 6}" y="${y + 4}" text-anchor="end">${fk(v)}</text>`; }
+  for (let k = 0; k <= 5; k++) { const t = x0 + (x1 - x0) * k / 5; g += `<text x="${X(t)}" y="${Hh - 8}" text-anchor="${k === 0 ? "start" : k === 5 ? "end" : "middle"}">${when(t)}</text>`; }
+  const ev = s.e.filter(([i]) => s.t[i] >= lo && !nul(s.b[i]));
+  svg.setAttribute("viewBox", `0 0 ${W} ${Hh}`);
+  svg.innerHTML = g + dots + lines +
+    `<path d="${path(s.pb)}" fill="none" stroke="var(--acc)" stroke-width="1.3" stroke-dasharray="5 4" opacity=".7"/>` +
+    `<path d="${path(s.ps)}" fill="none" stroke="var(--ask)" stroke-width="1.3" stroke-dasharray="5 4" opacity=".7"/>` +
+    `<path d="${path(s.a)}" fill="none" stroke="var(--ask)" stroke-width="1.8"/>` +
+    `<path d="${path(s.b)}" fill="none" stroke="var(--acc)" stroke-width="2"/>` +
+    ev.map(([i, c]) => c === 2 ? `<circle cx="${X(s.t[i])}" cy="${Y(s.b[i])}" r="5" fill="var(--new)"/>` :
+      `<circle cx="${X(s.t[i])}" cy="${Y(s.b[i])}" r="4" fill="var(--card)" stroke="var(--acc)" stroke-width="2"/>`).join("") +
+    (st.bi !== null && s.t[st.bi] >= lo ? `<line x1="${X(s.t[st.bi])}" x2="${X(s.t[st.bi])}" y1="${T}" y2="${Hh - B}" stroke="var(--fg)" stroke-width="1.5" stroke-dasharray="2 3"/>` : "") +
+    `<line id="xh" y1="${T}" y2="${Hh - B}" stroke="var(--mut)" stroke-width="1" opacity="0"/>` +
+    `<rect x="${L}" y="${T}" width="${W - L - R}" height="${Hh - T - B}" fill="transparent" id="hov"/>`;
+  const evAt = Object.fromEntries(s.e);
+  const hov = svg.querySelector("#hov"), xh = svg.querySelector("#xh");
+  hov.onmousemove = e => {
+    const r = svg.getBoundingClientRect(), sx = (e.clientX - r.left) * W / r.width;
+    const t = x0 + (sx - L) / (W - L - R) * (x1 - x0);
+    let best = idx[0]; for (const i of idx) if (Math.abs(s.t[i] - t) < Math.abs(s.t[best] - t)) best = i;
+    const x = X(s.t[best]); xh.setAttribute("x1", x); xh.setAttribute("x2", x); xh.setAttribute("opacity", ".6");
+    const h = hp(best);
+    tip.innerHTML = `<b>${when(s.t[best])}</b> UTC<br>bid ${fk(s.b[best])} · ask ${fk(s.a[best])} · fill ${fk(s.bf[best])}<br>` +
+      `level: bid_med ${fk(s.bm[best])} · ask_med ${fk(s.am[best])}<br>` +
+      (h ? `fence median buy ${fk(h.bm)} <span class="muted">(all ${fk(h.bma)})</span> · sell ${fk(h.sm)} <span class="muted">(all ${fk(h.sma)})</span><br>` : "") +
+      `<span class="muted">pricedb ${fk(s.pb[best])} / ${fk(s.ps[best])}</span>` +
+      (evAt[best] ? `<br>${evAt[best] === 2 ? '<span class="badge">new high</span>' : "step"}` : "");
+    tip.style.display = "block";
+    const px = x / W * r.width;
+    tip.style.left = (px > r.width * 0.6 ? px - tip.offsetWidth - 12 : px + 12) + "px";
+    tip.style.top = "10px";
+  };
+  hov.onmouseleave = () => { tip.style.display = "none"; xh.setAttribute("opacity", "0"); };
+  hov.style.cursor = "pointer";
+  hov.onclick = e => {
+    const r = svg.getBoundingClientRect(), sx = (e.clientX - r.left) * W / r.width;
+    const t = x0 + (sx - L) / (W - L - R) * (x1 - x0);
+    let best = idx[0]; for (const i of idx) if (Math.abs(s.t[i] - t) < Math.abs(s.t[best] - t)) best = i;
+    selectPoint(best);
+  };
+}
+function openItem(sid) {
+  st.sid = sid; st.bi = null; setTab("item"); renderList(); renderItem();
+  const on = document.querySelector("#ilist .on"); if (on) on.scrollIntoView({ block: "nearest" });
+}
+
+
+// ---------- order book at one point (live mode) ----------
+function selectPoint(i) { st.bi = i; drawChart(); renderBook(); }
+const REASON_ORDER = ["kept", "flag: strange", "flag: spelled", "flag: parted", "flag: painted",
+  "null price", "untrusted account", "duplicate account", "no median", "fence: too high", "fence: too low"];
+function bookSide(title, rows, sum, isBuy, prices) {
+  const f = sum.fence;
+  const mAll = nul(sum.median_all) || sum.median_all === sum.median ? "" : ` <span class="muted">(over all ${sum.n_valid}: ${fk(sum.median_all)})</span>`;
+  const fence = !f ? `no fence: ${sum.n_valid} valid listing(s), need 3 for a median` : isBuy
+    ? `median of the top ${sum.depth || DEPTH} <b>${fk(sum.median)}</b>${mAll} · keep ≥ <b>${fk(f.lo)}</b>, ≤ <b>${fk(f.hi_by_trust[0])}</b> (trust 0) / <b>${fk(f.hi_by_trust[1])}</b> (1) / <b>${fk(f.hi_by_trust[2])}</b> (2)`
+    : `median of the top ${sum.depth || DEPTH} <b>${fk(sum.median)}</b>${mAll} · keep ≥ <b>${fk(f.lo_by_trust[0])}</b> (trust 0) / <b>${fk(f.lo_by_trust[1])}</b> (1) / <b>${fk(f.lo_by_trust[2])}</b> (2), ≤ <b>${fk(f.hi)}</b>`;
+  const res = isBuy ? `bid1 <b>${fk(prices.bid1)}</b> · bid5 <b>${fk(prices.bid5)}</b>`
+                    : `ask1 <b>${fk(prices.ask1)}</b> · ask5 <b>${fk(prices.ask5)}</b>`;
+  const body = rows.map(r => {
+    const drop = r.reason !== "kept";
+    const tags = [r.bot ? "bot" : "", r.premium ? "premium" : "", "trust " + r.trust, r.deal || ""]
+      .filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join("") +
+      r.flags.map(t => `<span class="tag f">${esc(t)}</span>`).join("");
+    const user = r.steamId ? `<a class="user" href="https://steamcommunity.com/profiles/${encodeURIComponent(r.steamId)}" target="_blank" rel="noopener" title="${esc(r.steamId)}">${esc(r.user || r.steamId)}</a>`
+                           : `<span class="user">${esc(r.user || "?")}</span>`;
+    const verdict = drop ? `${esc(r.reason)}${r.detail ? `<div class="muted">${esc(r.detail)}</div>` : ""}`
+      : `kept${r.role ? `<span class="role">${r.role === "top5" ? "top 5" : r.role}</span>` : ""}`;
+    return `<tr class="${drop ? "drop" : r.role ? "used" : ""}"><td class="n">${r.in_depth ? `<span class="tag" title="one of the top ${DEPTH} valid listings: the fence median reads these">m</span>` : ""}${fk(r.tk)}<div class="muted" style="font-size:11px;font-weight:400">${esc(r.raw || "")}</div></td>
+      <td>${user}</td><td>${tags}</td><td class="why">${verdict}</td></tr>`;
+  }).join("");
+  return `<div><h3>${title}</h3>
+    <div class="bsum"><b>${sum.n_raw}</b> stored → <b>${sum.n_valid}</b> valid (flags, null price, duplicate accounts out) → <b>${sum.n_kept}</b> kept<br>${fence}<br>${res}</div>
+    <div class="wrap"><table><thead><tr><th class="n">keys</th><th>account</th><th>tags</th><th>verdict</th></tr></thead>
+    <tbody>${body || `<tr><td colspan="4" class="muted">no listings</td></tr>`}</tbody></table></div></div>`;
+}
+function renderBook() {
+  const el = document.getElementById("book");
+  if (!el || st.sid === null) return;
+  const s = S[st.sid], i = st.bi, h = s.t[i], pid = PASS_AT[h.toFixed(2)];
+  const pager = `<div class="pager">
+      <button id="bk-prev" ${i <= 0 ? "disabled" : ""}>◀ prev pass</button>
+      <b>Order book · p${pid} · ${when(h)} UTC</b>
+      <span class="muted">point ${i + 1} of ${s.t.length} · bid1 ${fk(s.b[i])} · ask1 ${fk(s.a[i])}</span>
+      <button id="bk-next" ${i >= s.t.length - 1 ? "disabled" : ""}>next pass ▶</button>
+      <button id="bk-last" ${i >= s.t.length - 1 ? "disabled" : ""}>latest</button>
+    </div>
+    <div class="muted" style="font-size:12px;margin-top:4px">click the chart to pick a pass · ← / → step through passes</div>`;
+  const wire = () => {
+    document.getElementById("bk-prev").onclick = () => selectPoint(i - 1);
+    document.getElementById("bk-next").onclick = () => selectPoint(i + 1);
+    document.getElementById("bk-last").onclick = () => selectPoint(s.t.length - 1);
+  };
+  if (!D.meta.live) {
+    el.innerHTML = pager + `<div class="note">Every buy and sell listing at this point, each marked kept or dropped
+      and why, is read live from the db. Start the page with <code>python -m engine dashboard --serve --open</code>
+      (from backpack/) to see it; this file is the static snapshot.</div>`;
+    return wire();
+  }
+  const key = st.sid + "|" + pid;
+  const show = b => {
+    if (st.sid !== +key.split("|")[0] || PASS_AT[S[st.sid].t[st.bi].toFixed(2)] !== pid) return;
+    if (b.error) { el.innerHTML = pager + `<div class="note">${esc(b.error)}</div>`; return wire(); }
+    const sn = b.snapshot;
+    const depth = (side, page, stored) => sn.source === "classifieds" && page > stored
+      ? ` · <b>${side}: ${page} on the page, ${stored} stored</b> (the stored book is capped at 7 a side${page >= 10 ? "; page full, so more exist" : ""})`
+      : sn.source === "app" && page >= 30 ? ` · <b>${side}: 30 returned (capped, more exist)</b>` : "";
+    el.innerHTML = pager + `<div class="muted" style="font-size:12px;margin:8px 0">snapshot #${sn.id} · scraped ${esc((sn.scraped_at || "").slice(0, 19).replace("T", " "))} · ${esc(sn.source || "")} · key = ${sn.key_price_ref ?? "–"} ref${depth("buys", sn.n_buy_page, b.buy.n_raw)}${depth("sells", sn.n_sell_page, b.sell.n_raw)}</div>
+      <div class="bookgrid">${bookSide("Buy orders", b.buys, b.buy, true, b.prices)}${bookSide("Sell orders", b.sells, b.sell, false, b.prices)}</div>`;
+    wire();
+  };
+  if (BOOKS.has(key)) return show(BOOKS.get(key));
+  el.innerHTML = pager + `<div class="muted" style="padding:14px 0">loading the book…</div>`; wire();
+  const it = S[st.sid];
+  fetch(`/api/book?item=${encodeURIComponent(it.it)}&q=${it.q}&v=${it.v === null ? "null" : it.v}&pass=${pid}`)
+    .then(r => r.json()).catch(() => ({ error: "could not reach the local server — is --serve still running?" }))
+    .then(b => { if (!b.error) BOOKS.set(key, b); show(b); });
+}
+
+// ---------- book audit ----------
+function renderAudit() {
+  const el = document.getElementById("s-audit"), A = D.audit;
+  const tot = A.totals, sumSide = side => Object.values(tot[side] || {}).reduce((a, b) => a + b, 0);
+  const nb = sumSide("buy"), ns = sumSide("sell");
+  const reasons = REASON_ORDER.filter(r => (tot.buy || {})[r] || (tot.sell || {})[r])
+    .concat(Object.keys({ ...tot.buy, ...tot.sell }).filter(r => !REASON_ORDER.includes(r)));
+  const cell = (side, r, n) => { const c = (tot[side] || {})[r] || 0; return c ? `${c.toLocaleString()} <span class="muted">${fp(c / n)}</span>` : `<span class="muted">–</span>`; };
+  const dropKeys = [...new Set(A.books.flatMap(b => Object.keys(b[7])))].sort();
+  el.innerHTML = `
+    <p class="lead">Latest pass <b>p${A.pass}</b>: every stored listing in every Unique/Strange book, and what the read
+      rules did with it. The fence median reads the <b>top ${DEPTH}</b> valid listings a side (the depth the rules were
+      tuned on); the median columns compare it with the median over every valid listing, and the last column counts the
+      listings the two rules keep differently — sort by it to see where the depth matters. Use this to find where the rules may be wrong: open a book below to see each listing and its verdict${D.meta.live ? "" : " (order books need <code>--serve</code>)"}.</p>
+    <div class="card wrap"><table><thead><tr><th>verdict</th><th class="n">buy listings</th><th class="n">sell listings</th></tr></thead><tbody>
+      ${reasons.map(r => `<tr><td>${esc(r)}</td><td class="n">${cell("buy", r, nb)}</td><td class="n">${cell("sell", r, ns)}</td></tr>`).join("")}
+      <tr><td class="muted">stored listings</td><td class="n">${nb.toLocaleString()}</td><td class="n">${ns.toLocaleString()}</td></tr>
+    </tbody></table></div>
+    <div class="ctl">
+      <label>show books with <select id="au-r"><option value="">any drop</option><option value="*">all books</option>${dropKeys.map(k => `<option>${esc(k)}</option>`).join("")}</select></label>
+      <label><input type="checkbox" id="au-full"> page full (10 on page)</label>
+      <input type="text" id="au-q" placeholder="filter items…">
+      <span id="au-n"></span>
+    </div>
+    <div class="card wrap" id="au-t"></div>`;
+  const draw = () => {
+    const r = document.getElementById("au-r").value, full = document.getElementById("au-full").checked;
+    const q = document.getElementById("au-q").value.trim().toLowerCase();
+    const rows = A.books.map(([sid, br, bk, sr, sk, nbp, nsp, drops, db, ds]) => ({ sid, br, bk, sr, sk, nbp, nsp, drops,
+        db: db || [], ds: ds || [], n: Object.values(drops).reduce((a, b) => a + b, 0) }))
+      .filter(x => (r === "*" || (r === "" ? x.n > 0 : x.drops[r])) && (!full || x.nbp >= 10 || x.nsp >= 10) &&
+        (!q || S[x.sid].l.toLowerCase().includes(q)));
+    document.getElementById("au-n").textContent = `${rows.length} books`;
+    table(document.getElementById("au-t"), "au", [
+      { h: "item", td: x => link(x.sid), val: x => S[x.sid].l },
+      { h: "buys stored → kept", n: 1, td: x => `${x.br} → ${x.bk}`, val: x => x.br - x.bk },
+      { h: "sells stored → kept", n: 1, td: x => `${x.sr} → ${x.sk}`, val: x => x.sr - x.sk },
+      { h: "on page (b / s)", n: 1, td: x => `${x.nbp ?? "–"} / ${x.nsp ?? "–"}`, val: x => Math.max(x.nbp || 0, x.nsp || 0) },
+      { h: "dropped", n: 1, sort: 1, td: x => x.n, val: x => x.n },
+      { h: `buy median top ${DEPTH} / all`, n: 1, td: x => nul(x.db[0]) ? "–" : `${fk(x.db[0])} / ${fk(x.db[1])}`, val: x => nul(x.db[0]) || nul(x.db[1]) ? null : x.db[0] / x.db[1] },
+      { h: `sell median top ${DEPTH} / all`, n: 1, td: x => nul(x.ds[0]) ? "–" : `${fk(x.ds[0])} / ${fk(x.ds[1])}`, val: x => nul(x.ds[0]) || nul(x.ds[1]) ? null : x.ds[1] / x.ds[0] },
+      { h: "verdicts the depth changes (b / s)", n: 1, td: x => `${x.db[2] ?? "–"} / ${x.ds[2] ?? "–"}`, val: x => (x.db[2] || 0) + (x.ds[2] || 0) },
+      { h: "why", td: x => Object.entries(x.drops).map(([k, c]) => `<span class="chip">${esc(k)}${c > 1 ? " ×" + c : ""}</span>`).join("") },
+    ], rows);
+  };
+  ["au-r", "au-full", "au-q"].forEach(id => document.getElementById(id).oninput = draw);
+  draw();
+}
+
+
+// ---------- forecast (engine.forecast, dashboard --forecast) ----------
+function renderForecast() {
+  const el = document.getElementById("s-forecast"), P = D.forecast;
+  if (!P) { el.innerHTML = `<div class="card empty">Built without the forecast: run <code>python -m engine dashboard --forecast</code>.</div>`; return; }
+  const nbuy = P.picks.filter(r => r[3]).length, pf = P.portfolio;
+  const mean = k => P.folds.length ? P.folds.reduce((a, f) => a + (f[k] || 0), 0) / P.folds.length : null;
+  const posDays = pf ? pf.days.filter(d => d[2] > 0).length : 0;
+  el.innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="v">${nbuy} / ${P.picks.length}</div><div class="k">BUY / items with the ask ≤${fp(P.max_spread, 0)} over the bid, latest pass</div></div>
+      <div class="kpi"><div class="v">${fp(mean(7))}</div><div class="k">backtest: of the top 10 p_up per pass, share whose buy median rose (base ${fp(mean(4))})</div></div>
+      <div class="kpi"><div class="v">${pf ? fs(pf.mean, 2) : "–"}</div><div class="k">backtest portfolio: mean return per trade (${pf ? pf.n : 0} trades, ${posDays}/${pf ? pf.days.length : 0} days positive)</div></div>
+      <div class="kpi"><div class="v">${mean(5) === null ? "–" : mean(5).toFixed(3)}</div><div class="k">AUC of p_up on the test days</div></div>
+    </div>
+    <p class="lead"><b>p_up</b> = chance the buy-order median (held 2 passes) reaches the ask +${fp(P.target, 0)} within ${P.horizon}h.
+      <b>exp_ret</b> = expected return of buying at the ask now and selling into the best bid the first pass it is +${fp(P.take_profit, 0)} or more
+      over the ask, at its price (else to the best bid at ${P.horizon}h). <b>BUY</b> = exp_ret above ${fs(P.min_exp_ret, 1)} and the ask at least ${P.min_price} keys; bids from accounts whose trades do not go through are never sold into. <b>why</b> = the features
+      pushing exp_ret up (SHAP). Both models were built from scratch on ${P.n_train.toLocaleString()} labelled rows${P.trained_at ? ` at ${P.trained_at.slice(0, 16).replace("T", " ")} UTC` : ""}; the saved model is rebuilt once it is a day old.
+      Fills: any order inside its fence fills instantly (user rule) — see data-model.md, "Buy-level forecast".</p>
+    <div class="ctl">
+      <label><input type="checkbox" id="fc-buy" checked> BUY only</label>
+      <label>ask ≥ <input type="number" id="fc-min" value="0" step="0.01" style="width:70px"> keys</label>
+      <input type="text" id="fc-q" placeholder="filter items…">
+      <span id="fc-n"></span>
+    </div>
+    <div class="card wrap" id="fc-t"></div>
+    <div class="card"><div style="font-weight:600;margin-bottom:8px">Track record — purged walk-forward (each day scored by models trained only on labels closed before it)</div>
+      <div class="wrap" id="fc-bt"></div>
+      <p class="muted" style="font-size:12.5px;margin:8px 0 0">Is p_up a fair probability? ${P.reliability.map(([a, b, n]) => `said ${fp(a, 0)} → ${fp(b, 0)} (n=${n.toLocaleString()})`).join(" · ")}</p>
+      ${pf ? `<p class="muted" style="font-size:12.5px;margin:4px 0 0">Portfolio (≤10 buys per pass, exp_ret > ${fs(P.min_exp_ret, 1)}, ask ≥ ${P.min_price} keys, never two of one item): ${pf.days.map(([d, n, m]) => `${d}: ${n} trades ${fs(m, 2)}`).join(" · ")} · all: win ${fp(pf.win)}, ${pf.keys > 0 ? "+" : ""}${pf.keys} keys on unit trades</p>` : ""}
+    </div>
+    <div class="card"><div style="font-weight:600;margin-bottom:6px">Forward test — days the recipe never saw</div>
+      ${P.forward ? `<p style="margin:0">Since ${P.forward.since.replace("T", " ")} UTC (the recipe was tuned on labels before it): ${P.forward.passes} labelled passes · AUC ${nul(P.forward.auc) ? "–" : P.forward.auc.toFixed(3)} · top-10 ${fs(P.forward.ret10, 2)} vs all ${fs(P.forward.ret_all, 2)} · portfolio ${P.forward.n} trades${P.forward.n ? `, win ${fp(P.forward.win)}, mean ${fs(P.forward.mean, 2)}, ${P.forward.keys > 0 ? "+" : ""}${P.forward.keys} keys` : ""}${P.forward.unknown ? ` (${P.forward.unknown} still waiting for a buyer, left out)` : ""}.</p>
+        <p class="muted" style="font-size:12.5px;margin:4px 0 0">A pass is labelled 48 h after it; this grows by one pass an hour. One day is the first real read.</p>`
+      : `<p class="muted" style="margin:0">No pass after the freeze is labelled yet (48 h delay).</p>`}
+    </div>`;
+  const draw = () => {
+    const onlyBuy = document.getElementById("fc-buy").checked, mn = parseFloat(document.getElementById("fc-min").value) || 0;
+    const q = document.getElementById("fc-q").value.trim().toLowerCase();
+    const rows = P.picks.map(([sid, p, er, buy, b1, med, a1, spr, sell, drv]) => ({ sid, p, er, buy, b1, med, a1, spr, sell, drv }))
+      .filter(r => (!onlyBuy || r.buy) && (nul(r.a1) || r.a1 >= mn) && (!q || S[r.sid].l.toLowerCase().includes(q)));
+    document.getElementById("fc-n").textContent = `${rows.length} items`;
+    table(document.getElementById("fc-t"), "fc", [
+      { h: "", td: r => r.buy ? `<span class="badge">BUY</span>` : "" },
+      { h: "item", td: r => `${link(r.sid)} <a href="${bptf(r.sid)}" target="_blank" rel="noopener" class="muted" title="its bp.tf classifieds page">bp.tf ↗</a>`, val: r => S[r.sid].l },
+      { h: "p_up", n: 1, td: r => fp(r.p, 0), val: r => r.p },
+      { h: "exp_ret", n: 1, sort: 1, td: r => `<span class="${r.er > 0 ? "pos" : ""}">${fs(r.er, 2)}</span>`, val: r => r.er },
+      { h: "best bid", n: 1, td: r => fk(r.b1), val: r => r.b1 },
+      { h: "buy median", n: 1, td: r => fk(r.med), val: r => r.med },
+      { h: "ask", n: 1, td: r => fk(r.a1), val: r => r.a1 },
+      { h: "spread", n: 1, td: r => fp(r.spr), val: r => r.spr },
+      { h: "sell at", n: 1, td: r => fk(r.sell), val: r => r.sell },
+      { h: "why", td: r => r.drv.map(f => `<span class="chip">${esc(f)}</span>`).join("") },
+    ], rows, 300);
+  };
+  ["fc-buy", "fc-min", "fc-q"].forEach(id => document.getElementById(id).oninput = draw);
+  draw();
+  const bt = P.folds.map(([a, b, ntr, nte, base, auc, p5, p10, r10, rt10, rall]) => ({ a, b, ntr, nte, base, auc, p5, p10, r10, rt10, rall }));
+  table(document.getElementById("fc-bt"), "fcbt", [
+    { h: "test day (UTC)", td: r => `${r.a.slice(5, 16).replace("T", " ")} → ${r.b.slice(5, 16).replace("T", " ")}`, val: r => r.a, sort: 1 },
+    { h: "train rows", n: 1, td: r => r.ntr.toLocaleString(), val: r => r.ntr },
+    { h: "base", n: 1, td: r => fp(r.base), val: r => r.base },
+    { h: "AUC", n: 1, td: r => nul(r.auc) ? "–" : r.auc.toFixed(3), val: r => r.auc },
+    { h: "prec@5", n: 1, td: r => fp(r.p5), val: r => r.p5 },
+    { h: "prec@10", n: 1, td: r => fp(r.p10), val: r => r.p10 },
+    { h: "ret top-10", n: 1, td: r => fs(r.r10, 2), val: r => r.r10 },
+    { h: "ret tightest-10", n: 1, td: r => fs(r.rt10, 2), val: r => r.rt10 },
+    { h: "ret all", n: 1, td: r => fs(r.rall, 2), val: r => r.rall },
+  ], bt);
+}
+
+// ---------- wiring ----------
+const renders = { forecast: renderForecast, watch: renderWatch, signals: renderSignals, events: renderEvents, movers: renderMovers, climbers: renderClimbers, audit: renderAudit, item: () => { renderList(); renderItem(); } };
+document.addEventListener("keydown", e => {
+  if (st.tab !== "item" || st.sid === null || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.key === "ArrowLeft" && st.bi > 0) { e.preventDefault(); selectPoint(st.bi - 1); }
+  if (e.key === "ArrowRight" && st.bi < S[st.sid].t.length - 1) { e.preventDefault(); selectPoint(st.bi + 1); }
+});
+function setTab(t) {
+  st.tab = t;
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.tab === t));
+  document.querySelectorAll("main section").forEach(s => s.classList.toggle("on", s.id === "s-" + t));
+  renders[t]();
+  try { localStorage.setItem("re-tab", t); } catch (e) {}
+}
+document.getElementById("tabs").onclick = e => { const b = e.target.closest("button"); if (b) setTab(b.dataset.tab); };
+document.querySelector(".seg").onclick = e => {
+  const b = e.target.closest("button"); if (!b) return;
+  st.def = b.dataset.def;
+  document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b));
+  document.getElementById("ev-new").checked = st.def === "new";
+  renders[st.tab]();
+};
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-sid]"); if (a) { openItem(+a.dataset.sid); return; }
+  const p = e.target.closest("[data-pick]"); if (p) { st.sid = +p.dataset.pick; st.bi = null; renderList(); renderItem(); }
+});
+["ev-h", "ev-new", "ev-q"].forEach(id => document.getElementById(id).oninput = renderEvents);
+["mv-lo", "mv-hi", "mv-sp", "mv-q"].forEach(id => document.getElementById(id).oninput = renderMovers);
+document.getElementById("iq").oninput = renderList;
+document.getElementById("iq").onkeydown = e => {
+  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+  e.preventDefault();
+  const k = listOrder.indexOf(st.sid), n = e.key === "ArrowDown" ? k + 1 : k - 1;
+  if (n >= 0 && n < listOrder.length) { st.sid = listOrder[n]; st.bi = null; renderList(); renderItem();
+    const on = document.querySelector("#ilist .on"); if (on) on.scrollIntoView({ block: "nearest" }); }
+};
+
+renderMeta();
+if (D.forecast) document.getElementById("tab-forecast").hidden = false;
+let start = D.forecast ? "forecast" : "watch";
+try { start = localStorage.getItem("re-tab") || start; } catch (e) {}
+if (start === "forecast" && !D.forecast) start = "watch";
+if (start === "item" && st.sid === null && D.defs.any.watch.length) st.sid = D.defs.any.watch[0][0];
+setTab(renders[start] ? start : "watch");
+</script>
+</body>
+</html>

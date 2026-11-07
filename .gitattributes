@@ -1,0 +1,13 @@
+# Normalise to LF in the repo; Git converts on checkout per core.autocrlf.
+* text=auto
+
+# Windows-only launchers: keep CRLF in the working tree so cmd.exe/PowerShell
+# never see a stray LF-only line.
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Never diff or line-ending-mangle these.
+*.db  binary
+*.db-wal binary
+*.db-shm binary
+*.pyc binary

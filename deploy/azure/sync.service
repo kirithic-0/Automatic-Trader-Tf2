@@ -1,0 +1,17 @@
+# The gRPC end of the PC <-> VM sync. Listens on 127.0.0.1:50051 only; the PC
+# reaches it through an SSH tunnel (sync/pull.py --ssh ...).
+#
+# Installed by setup_vm.sh; logs: journalctl -u sync -f
+[Unit]
+Description=Order-book DB sync server (gRPC, localhost only)
+After=network-online.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/opt/automatic-trader
+ExecStart=/opt/automatic-trader/.venv/bin/python -u sync/server.py --db collector/trading_app.db
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

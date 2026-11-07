@@ -1,0 +1,11 @@
+# Everything the engine, the collector, the sync and their tests need (Python 3.10+).
+numpy>=2.0
+pandas>=2.2
+pyarrow>=15
+xgboost>=2.0          # the forecast (engine/forecast/models.py)
+scikit-learn>=1.4     # backtest metrics (AUC, average precision)
+zstandard>=0.23       # compressed books (book_codec.py)
+SQLAlchemy>=2.0       # the collector's schema (collector/snapshot_store.py)
+aiohttp>=3.9          # the book server (collector/book_server.py)
+grpcio>=1.84          # = the version sync/dbsync_pb2_grpc.py was generated with
+protobuf>=7.35.1      # = the runtime sync/dbsync_pb2.py was generated for

@@ -1,0 +1,7 @@
+# the collector (collector/) and the VM side of the sync (sync/server.py)
+SQLAlchemy>=2.0
+zstandard>=0.23    # book_json storage (book_codec.py)
+aiohttp>=3.9       # book_server.py
+# sync/ -- the gRPC link between the collector and the PC
+grpcio>=1.84       # = the version sync/dbsync_pb2_grpc.py was generated with
+protobuf>=7.35.1   # = the runtime sync/dbsync_pb2.py was generated for

@@ -1,0 +1,924 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TF2 control panel</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --surface-2: #f0efec;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --up: #2a78d6; --down: #e34948; --neutral: #f0efec;
+  --good: #0ca30c; --warning: #fab219; --critical: #d03b3b; --good-ink: #006300;
+  --h0: #f0efec; --h1: #cde2fb; --h2: #9ec5f4; --h3: #6da7ec; --h4: #3987e5; --h5: #256abf; --h6: #184f95; --h7: #0d366b;
+  --hover: rgba(42,120,214,0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+    --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --up: #3987e5; --down: #e66767; --neutral: #383835;
+    --good-ink: #0ca30c;
+    --h0: #232321; --h1: #0d366b; --h2: #184f95; --h3: #256abf; --h4: #2a78d6; --h5: #5598e7; --h6: #86b6ef; --h7: #cde2fb;
+    --hover: rgba(57,135,229,0.12);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --surface-2: #232321;
+  --ink: #f0efec; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --up: #3987e5; --down: #e66767; --neutral: #383835;
+  --good-ink: #0ca30c;
+  --h0: #232321; --h1: #0d366b; --h2: #184f95; --h3: #256abf; --h4: #2a78d6; --h5: #5598e7; --h6: #86b6ef; --h7: #cde2fb;
+  --hover: rgba(57,135,229,0.12);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--page); color: var(--ink);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: 14px 20px 0; max-width: 1400px; margin: 0 auto; }
+h1 { font-size: 18px; margin: 0; font-weight: 650; }
+.pill { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--ink-2);
+  border: 1px solid var(--ring); border-radius: 999px; padding: 3px 10px; background: var(--surface); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex: none; }
+.dot.busy { background: var(--warning); animation: pulse 1.2s ease-in-out infinite; }
+.dot.err { background: var(--critical); }
+@keyframes pulse { 50% { opacity: .35; } }
+.spacer { flex: 1; }
+button { font: inherit; color: inherit; }
+.theme { background: none; border: 1px solid var(--ring); border-radius: 8px; padding: 3px 9px; cursor: pointer; color: var(--ink-2); }
+nav { display: flex; gap: 2px; padding: 10px 20px 0; max-width: 1400px; margin: 0 auto;
+  border-bottom: 1px solid var(--grid); overflow-x: auto; }
+nav button { background: none; border: 0; padding: 8px 12px; cursor: pointer; color: var(--ink-2);
+  border-bottom: 2px solid transparent; white-space: nowrap; }
+nav button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--s1); font-weight: 600; }
+main { max-width: 1400px; margin: 0 auto; padding: 16px 20px 40px; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--ring); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { background: none; border: 0; padding: 4px 10px; cursor: pointer; color: var(--ink-2); font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--surface-2); color: var(--ink); font-weight: 600; }
+.lbl { color: var(--muted); font-size: 12.5px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px; cursor: default; }
+.tile.link { cursor: pointer; }
+.tile.link:hover { background: var(--hover); }
+.tile .k { color: var(--ink-2); font-size: 12.5px; }
+.tile .v { font-size: 24px; font-weight: 650; margin: 2px 0; }
+.tile .s { color: var(--muted); font-size: 12.5px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 520px), 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 12px 14px 8px; min-width: 0; }
+.card h3 { font-size: 13.5px; margin: 0 0 2px; font-weight: 620; }
+.card .sub { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+.legend { display: flex; gap: 12px; font-size: 12px; color: var(--ink-2); margin-bottom: 2px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+svg { display: block; width: 100%; overflow: visible; }
+svg text { fill: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.tip { position: fixed; pointer-events: none; background: var(--surface); color: var(--ink);
+  border: 1px solid var(--ring); border-radius: 8px; padding: 6px 9px; font-size: 12px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12); display: none; z-index: 10; max-width: 320px; }
+.tip b { font-weight: 620; }
+.tip .row { display: flex; gap: 8px; align-items: center; }
+.tip .sw { width: 10px; height: 3px; border-radius: 2px; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.doc { white-space: normal; color: var(--ink-2); min-width: 180px; }
+tbody tr { cursor: pointer; }
+tbody tr:hover { background: var(--hover); }
+tbody tr.sel { background: var(--surface-2); }
+tbody tr[data-no] { cursor: default; }
+tbody tr[data-no]:hover { background: none; }
+.tablewrap { overflow: auto; max-height: 560px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-2); }
+.chip i { width: 9px; height: 9px; display: inline-block; flex: none; }
+.chip.ok i { background: var(--good); border-radius: 50%; }
+.chip.watch i { background: var(--warning); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.chip.drift i { background: var(--critical); border-radius: 2px; }
+.chip.none i { background: var(--axis); border-radius: 50%; }
+.heatwrap { overflow-x: auto; }
+.note { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+.empty { color: var(--muted); padding: 30px 0; text-align: center; }
+.two { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 12px; align-items: start; }
+@media (max-width: 900px) { .two { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { header, nav, main { padding-left: 16px; padding-right: 16px; } .tile .v { font-size: 20px; } }
+h2 { font-size: 15px; margin: 18px 0 8px; font-weight: 640; }
+.btn { border: 1px solid var(--ring); background: var(--surface); color: var(--ink); border-radius: 8px;
+  padding: 5px 11px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+.btn:hover { background: var(--hover); }
+.btn.primary { background: var(--s1); border-color: var(--s1); color: #fff; }
+.btn.danger { border-color: var(--critical); color: var(--critical); }
+.btn.small { padding: 2px 8px; font-size: 12px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.ctl { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; margin-bottom: 12px; }
+.ctl .card { display: flex; flex-direction: column; gap: 8px; padding-bottom: 12px; }
+.ctl .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.state { font-size: 15px; font-weight: 620; display: flex; align-items: center; gap: 8px; }
+.why { color: var(--ink-2); font-size: 12.5px; white-space: normal; }
+.warn { color: var(--ink); background: color-mix(in srgb, var(--warning) 18%, transparent); border-radius: 8px; padding: 6px 9px; font-size: 12.5px; }
+.pos { color: var(--good-ink); } .neg { color: var(--critical); }
+.mono { font: 12px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre; overflow: auto; max-height: 360px;
+  background: var(--surface-2); border-radius: 8px; padding: 8px 10px; color: var(--ink-2); }
+.toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--ink); color: var(--page);
+  border-radius: 10px; padding: 9px 14px; font-size: 13px; max-width: min(92vw, 640px); z-index: 20; display: none; white-space: pre-wrap; }
+.limits td input { width: 96px; font: inherit; padding: 3px 6px; border: 1px solid var(--ring); border-radius: 6px; background: var(--surface); color: var(--ink); text-align: right; }
+h2:first-child { margin-top: 0; }
+a { color: var(--s1); }
+.held { cursor: pointer; }
+.held:hover { background: var(--hover); }
+.held.on { outline: 2px solid var(--s1); outline-offset: -1px; }
+.big { font-size: 20px; font-weight: 650; }
+.search { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.search input, .search select { font: inherit; padding: 4px 8px; border: 1px solid var(--ring); border-radius: 8px; background: var(--surface); color: var(--ink); }
+.search input { width: min(100%, 340px); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.bookgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 12px; margin-top: 10px; }
+.bookgrid table td { vertical-align: top; }
+.bookgrid tr.drop td { color: var(--muted); }
+.bookgrid tr.used td:first-child { font-weight: 650; }
+.tag { display: inline-block; font-size: 11px; border: 1px solid var(--ring); border-radius: 5px; padding: 0 5px; margin-right: 3px; color: var(--ink-2); }
+.yes { color: var(--good-ink); font-weight: 600; }
+.pager { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TF2 control panel</h1>
+  <span class="pill" id="status"><span class="dot busy" id="dot"></span><span id="statusText">loading...</span></span>
+  <span class="spacer"></span>
+  <button class="theme" id="theme" title="Switch light / dark">Theme</button>
+</header>
+<nav role="tablist" id="tabs">
+  <button role="tab" data-tab="overview">Overview</button>
+  <button role="tab" data-tab="agent">Agent</button>
+  <button role="tab" data-tab="books">Books</button>
+  <button role="tab" data-tab="economy">Economy</button>
+  <button role="tab" data-tab="scrape">Scrape drift</button>
+  <button role="tab" data-tab="features">Feature drift</button>
+</nav>
+<main id="main"><div class="empty">Loading...</div></main>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast" role="status"></div>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const store = {get(k, d) { try { const v = localStorage.getItem("panel." + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+               set(k, v) { try { localStorage.setItem("panel." + k, JSON.stringify(v)); } catch (e) {} }};
+const ui = {tab: store.get("tab", "overview"), range: store.get("range", "7d"), scrapeSel: null, featSel: null,
+            featRef: store.get("featRef", "train"), featGroup: "all", heatAll: false,
+            sort: {scrape: ["psi", -1], features: ["psi", -1]}};
+let D = null, version = -1, T = [], A = null, limitsDirty = false;
+const TOKEN = "__PANEL_TOKEN__";
+const RANGES = {"24h": 24, "7d": 168, "30d": 720, "all": Infinity};
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+// ---------- formatting
+const pct = (v, d = 1) => v == null ? "–" : (v * 100).toFixed(d) + "%";
+const spct = (v, d = 2) => v == null ? "–" : (v >= 0 ? "+" : "") + (v * 100).toFixed(d) + "%";
+const num = (v, d = 2) => v == null ? "–" : Math.abs(v) >= 1000 ? Math.round(v).toLocaleString() : (+v).toFixed(d);
+const smart = v => v == null ? "–" : Math.abs(v) >= 100 ? Math.round(v).toLocaleString() : Math.abs(v) >= 1 ? v.toFixed(2) : v.toFixed(4);
+const when = ms => new Date(ms).toLocaleString([], {month: "short", day: "numeric", hour: "2-digit", minute: "2-digit"});
+const ago = ms => { const m = (Date.now() - ms) / 60000; return m < 1 ? "just now" : m < 90 ? Math.round(m) + " min ago" : m < 2880 ? (m / 60).toFixed(1) + " h ago" : (m / 1440).toFixed(1) + " d ago"; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
+const STATUS = {ok: "stable", watch: "moving", drift: "drifted", none: "no data"};
+const chip = s => `<span class="chip ${s}"><i></i>${STATUS[s]}</span>`;
+
+// ---------- tooltip
+const tip = $("#tip");
+function showTip(html, ev) {
+  tip.innerHTML = html; tip.style.display = "block";
+  const r = tip.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - 14;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.style.display = "none"; };
+
+// ---------- the range
+function rangeIdx() {
+  if (!T.length) return [];
+  const lo = T[T.length - 1] - RANGES[ui.range] * 3600e3;
+  const out = [];
+  for (let i = 0; i < T.length; i++) if (T[i] >= lo) out.push(i);
+  return out;
+}
+
+// ---------- charts
+function niceTicks(lo, hi, n = 4) {
+  const pos = lo >= 0;
+  if (!(hi > lo)) { const d = Math.abs(lo) || 1; lo -= d * 0.05; hi += d * 0.05; }
+  if (pos) lo = Math.max(0, lo);
+  const step0 = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(step0)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0);
+  const a = Math.floor(lo / step) * step, b = Math.ceil(hi / step) * step, out = [];
+  for (let v = a; v <= b + step / 2; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+// el: container; t: ms array; series: [{name, v, color, w, dash}]; opts: {fmt, height, bars, band:{lo,hi,lo2,hi2}, zero,
+//   refs: [{v, name, color}] level lines, marks: [{t, name, color}] time lines, x0/x1 (ms), sel: picked index, onPick(i)}
+function chart(el, t, series, opts = {}) {
+  const W = Math.max(280, el.clientWidth), H = opts.height || 170, L = 52, R = 10, Tp = 8, B = 22;
+  const fmt = opts.fmt || smart;
+  const vals = [];
+  series.forEach(s => s.v.forEach(v => v != null && vals.push(v)));
+  if (opts.band) ["lo", "hi"].forEach(k => opts.band[k].forEach(v => v != null && vals.push(v)));
+  if (opts.zero || opts.bars) vals.push(0);
+  (opts.refs || []).forEach(r => r.v != null && vals.push(r.v));
+  if (!t.length || !vals.length) { el.innerHTML = '<div class="empty">No data in this range.</div>'; return; }
+  const ticks = niceTicks(Math.min(...vals), Math.max(...vals));
+  const y0 = ticks[0], y1 = ticks[ticks.length - 1];
+  const x0 = opts.x0 ?? t[0], x1 = (opts.x1 ?? t[t.length - 1]) === x0 ? x0 + 1 : (opts.x1 ?? t[t.length - 1]);
+  const X = v => L + (v - x0) / (x1 - x0) * (W - L - R), Y = v => Tp + (1 - (v - y0) / (y1 - y0)) * (H - Tp - B);
+  let g = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="${esc(opts.label || "")}">`;
+  ticks.forEach(v => { g += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(${v === 0 && (opts.zero || opts.bars) ? "--axis" : "--grid"})" stroke-width="1"/>`;
+    g += `<text x="${L - 6}" y="${Y(v) + 3.5}" text-anchor="end">${fmt(v)}</text>`; });
+  const span = x1 - x0, xt = W < 520 ? 3 : 5;
+  for (let i = 0; i <= xt; i++) { const v = x0 + span * i / xt, d = new Date(v);
+    const lab = span > 3 * 86400e3 ? d.toLocaleDateString([], {month: "short", day: "numeric"})
+      : span > 20 * 3600e3 ? d.toLocaleString([], {month: "short", day: "numeric", hour: "2-digit"}) : d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"});
+    g += `<text x="${X(v)}" y="${H - 6}" text-anchor="${i === 0 ? "start" : i === xt ? "end" : "middle"}">${lab}</text>`; }
+  const path = v => { let d = "", pen = false;
+    v.forEach((y, i) => { if (y == null) { pen = false; return; } d += (pen ? "L" : "M") + X(t[i]).toFixed(1) + "," + Y(y).toFixed(1); pen = true; });
+    return d; };
+  const area = (lo, hi) => { let d = "", seg = [];
+    const flush = () => { if (seg.length) { d += "M" + seg.map(i => X(t[i]).toFixed(1) + "," + Y(hi[i]).toFixed(1)).join("L")
+      + "L" + seg.slice().reverse().map(i => X(t[i]).toFixed(1) + "," + Y(lo[i]).toFixed(1)).join("L") + "Z"; } seg = []; };
+    t.forEach((_, i) => { if (lo[i] == null || hi[i] == null) flush(); else seg.push(i); }); flush(); return d; };
+  if (opts.band) {
+    g += `<path d="${area(opts.band.lo, opts.band.hi)}" fill="var(--s1)" opacity="0.14"/>`;
+    if (opts.band.lo2) g += `<path d="${area(opts.band.lo2, opts.band.hi2)}" fill="var(--s1)" opacity="0.22"/>`;
+  }
+  if (opts.bars) {
+    const bw = Math.max(1, (W - L - R) / t.length - 1);
+    series[0].v.forEach((v, i) => { if (v == null) return; const y = Y(Math.max(v, 0)), h = Math.max(1, Math.abs(Y(v) - Y(0)));
+      g += `<rect x="${(X(t[i]) - bw / 2).toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="var(${v >= 0 ? "--up" : "--down"})" rx="${bw > 6 ? 2 : 0}"/>`; });
+  } else {
+    series.forEach(s => { g += `<path d="${path(s.v)}" fill="none" stroke="${s.color}" stroke-width="${s.w || 2}" ${s.dash ? `stroke-dasharray="${s.dash}"` : ""} stroke-linejoin="round" stroke-linecap="round"/>`; });
+  }
+  (opts.refs || []).forEach((r, k) => { if (r.v == null) return;   // labels alternate left / right: close lines stay readable
+    g += `<line x1="${L}" x2="${W - R}" y1="${Y(r.v)}" y2="${Y(r.v)}" stroke="${r.color}" stroke-width="1.3" stroke-dasharray="5 4"/>`;
+    g += `<text x="${k % 2 ? W - R - 4 : L + 4}" y="${Y(r.v) - 4}" text-anchor="${k % 2 ? "end" : "start"}" style="fill:${r.color}">${esc(r.name)} ${fmt(r.v)}</text>`; });
+  (opts.marks || []).forEach(k => { if (k.t == null || k.t < x0 || k.t > x1) return;
+    g += `<line x1="${X(k.t)}" x2="${X(k.t)}" y1="${Tp}" y2="${H - B}" stroke="${k.color}" stroke-width="1.3" stroke-dasharray="2 3"/>`;
+    g += `<text x="${X(k.t) + 4}" y="${Tp + 10}" style="fill:${k.color}">${esc(k.name)}</text>`; });
+  if (opts.sel != null && t[opts.sel] != null)
+    g += `<line x1="${X(t[opts.sel])}" x2="${X(t[opts.sel])}" y1="${Tp}" y2="${H - B}" stroke="var(--ink-2)" stroke-width="1.5"/>`;
+  g += `<line id="xh" x1="0" x2="0" y1="${Tp}" y2="${H - B}" stroke="var(--axis)" stroke-width="1" visibility="hidden"/>`;
+  g += `<g id="dots"></g><rect x="${L}" y="0" width="${W - L - R}" height="${H - B}" fill="transparent" id="hit" ${opts.onPick ? 'style="cursor:pointer"' : ""}/></svg>`;
+  el.innerHTML = g;
+  const svg = el.querySelector("svg"), xh = svg.querySelector("#xh"), dots = svg.querySelector("#dots");
+  const near = ev => { const r = svg.getBoundingClientRect(), mx = (ev.clientX - r.left) * W / r.width;
+    const tv = x0 + (mx - L) / (W - L - R) * (x1 - x0);
+    let i = 0, best = Infinity; t.forEach((v, j) => { const d = Math.abs(v - tv); if (d < best) { best = d; i = j; } }); return i; };
+  if (opts.onPick) svg.querySelector("#hit").addEventListener("click", ev => { hideTip(); opts.onPick(near(ev)); });
+  svg.querySelector("#hit").addEventListener("mousemove", ev => {
+    const i = near(ev);
+    xh.setAttribute("x1", X(t[i])); xh.setAttribute("x2", X(t[i])); xh.setAttribute("visibility", "visible");
+    let dd = "", rows = "";
+    if (opts.band) rows += `<div class="row">p10–p90 <b>${fmt(opts.band.lo[i])} – ${fmt(opts.band.hi[i])}</b></div>`;
+    series.forEach(s => { const v = s.v[i]; if (v == null) return;
+      if (!opts.bars) dd += `<circle cx="${X(t[i])}" cy="${Y(v)}" r="4" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`;
+      rows += `<div class="row"><span class="sw" style="background:${opts.bars ? (v >= 0 ? "var(--up)" : "var(--down)") : s.color}"></span>${esc(s.name)} <b>${fmt(v)}</b></div>`; });
+    dots.innerHTML = dd;
+    showTip(`<div>${when(t[i])}</div>${rows || "<div>no value</div>"}${opts.tipExtra ? opts.tipExtra(i) : ""}`, ev);
+  });
+  svg.querySelector("#hit").addEventListener("mouseleave", () => { xh.setAttribute("visibility", "hidden"); dots.innerHTML = ""; hideTip(); });
+}
+function card(title, sub, legend) {
+  const c = document.createElement("div"); c.className = "card";
+  c.innerHTML = `<h3>${esc(title)}</h3>${sub ? `<div class="sub">${sub}</div>` : ""}` +
+    (legend && legend.length > 1 ? `<div class="legend">${legend.map(l => `<span><i style="background:${l[1]}"></i>${esc(l[0])}</span>`).join("")}</div>` : "") +
+    `<div class="plot"></div>`;
+  return c;
+}
+// a chart card over the selected range of the passes table
+function passChart(parent, title, sub, cols, opts = {}) {
+  const idx = rangeIdx(), P = D.passes;
+  const colors = opts.colors || ["var(--s1)", "var(--s2)", "var(--s3)"];
+  const series = cols.map((c, k) => ({name: c[1], v: idx.map(i => c[2] ? c[2](i) : P[c[0]][i]), color: colors[k]}));
+  const c = card(title, sub, series.map(s => [s.name, s.color]));
+  parent.appendChild(c);
+  chart(c.querySelector(".plot"), idx.map(i => T[i]), series, opts);
+  return c;
+}
+function sparkline(v) {
+  const pts = v.map((y, i) => [i, y]).filter(p => p[1] != null);
+  if (pts.length < 2) return "";
+  const lo = Math.min(...pts.map(p => p[1])), hi = Math.max(...pts.map(p => p[1])), W = 90, H = 20;
+  const d = pts.map((p, k) => (k ? "L" : "M") + (p[0] / (v.length - 1) * W).toFixed(1) + "," + (hi > lo ? (H - 2 - (p[1] - lo) / (hi - lo) * (H - 4)) : H / 2).toFixed(1)).join("");
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="width:${W}px"><path d="${d}" fill="none" stroke="var(--s1)" stroke-width="1.5"/></svg>`;
+}
+
+// ---------- heatmap (PSI per column per day)
+function heatColor(v) {
+  if (v == null) return null;
+  const stops = [0.02, 0.05, 0.1, 0.15, 0.25, 0.4, 0.6];
+  let k = stops.findIndex(s => v < s); if (k < 0) k = 7;
+  return `var(--h${k})`;
+}
+function heatmap(el, h, rows, onPick) {
+  const days = h.days, ix = Object.fromEntries(h.cols.map((c, i) => [c, i]));
+  const cw = Math.max(14, Math.min(28, (Math.max(320, el.clientWidth) - 170) / Math.max(1, days.length))), rh = 15, L = 168, Tp = 4;
+  const W = L + cw * days.length + 4, H = Tp + rh * rows.length + 20;
+  let g = `<svg viewBox="0 0 ${W} ${H}" height="${H}" style="width:${W}px;max-width:none">`;
+  rows.forEach((c, r) => {
+    g += `<text x="${L - 6}" y="${Tp + r * rh + 11}" text-anchor="end" data-col="${esc(c)}" style="cursor:pointer;fill:var(--ink-2)">${esc(c.length > 26 ? c.slice(0, 25) + "…" : c)}</text>`;
+    const z = h.z[ix[c]] || [];
+    days.forEach((d, j) => { const v = z[j], col = heatColor(v);
+      g += `<rect x="${L + j * cw + 1}" y="${Tp + r * rh + 1}" width="${cw - 2}" height="${rh - 2}" rx="2" fill="${col || "transparent"}" ${col ? "" : 'stroke="var(--grid)"'} data-r="${r}" data-j="${j}"/>`; });
+  });
+  days.forEach((d, j) => { if (j % Math.ceil(days.length / 10) === 0 || j === days.length - 1)
+    g += `<text x="${L + j * cw + cw / 2}" y="${H - 5}" text-anchor="middle">${d.slice(5)}</text>`; });
+  el.innerHTML = g + "</svg>";
+  el.querySelectorAll("rect[data-r]").forEach(rc => {
+    rc.addEventListener("mousemove", ev => { const c = rows[+rc.dataset.r], v = (h.z[ix[c]] || [])[+rc.dataset.j];
+      showTip(`<b>${esc(c)}</b><div>${days[+rc.dataset.j]} vs the ${D.meta.ref_days} days before</div><div>PSI <b>${v == null ? "no data" : v.toFixed(3)}</b> ${v == null ? "" : chip(v >= D.meta.psi_drift ? "drift" : v >= D.meta.psi_watch ? "watch" : "ok")}</div>`, ev); });
+    rc.addEventListener("mouseleave", hideTip);
+    rc.addEventListener("click", () => onPick(rows[+rc.dataset.r]));
+  });
+  el.querySelectorAll("text[data-col]").forEach(tx => tx.addEventListener("click", () => onPick(tx.dataset.col)));
+}
+function heatLegend() {
+  const st = [["< 0.02", 0], ["0.05", 2], ["0.1", 3], ["0.25", 5], ["0.6+", 7]];
+  return `<div class="legend" style="margin-top:4px">PSI: ${st.map(s => `<span><i style="background:var(--h${s[1]});height:10px;width:14px"></i>${s[0]}</span>`).join("")}
+    <span>· ${chip("ok")} under ${D.meta.psi_watch}</span><span>${chip("watch")} ${D.meta.psi_watch}–${D.meta.psi_drift}</span><span>${chip("drift")} over ${D.meta.psi_drift}</span></div>`;
+}
+
+// ---------- drift table + detail
+function driftTable(el, group, rows, docs, sel, onPick) {
+  const p50 = D[group].p50, idx = rangeIdx();
+  const [key, dir] = ui.sort[group];
+  const val = r => key === "col" ? r.col : r[key] == null ? -Infinity : r[key];
+  rows = rows.slice().sort((a, b) => (val(a) > val(b) ? 1 : val(a) < val(b) ? -1 : 0) * dir);
+  const th = (k, t, cls = "") => `<th class="${cls}" data-k="${k}">${t}${key === k ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`;
+  let h = `<div class="tablewrap"><table><thead><tr>${th("col", "Column")}<th>What it is</th>${th("psi", "PSI", "num")}<th>Status</th>${th("p50_now", "Median now", "num")}${th("p50_ref", "Median ref", "num")}${th("miss_now", "Missing now", "num")}${th("miss_ref", "Missing ref", "num")}<th>Median, range</th></tr></thead><tbody>`;
+  rows.forEach(r => {
+    h += `<tr data-col="${esc(r.col)}" class="${r.col === sel ? "sel" : ""}"><td>${esc(r.col)}</td><td class="doc">${esc(docs[r.col] || "")}</td>
+      <td class="num">${r.psi == null ? "–" : r.psi.toFixed(3)}</td><td>${chip(r.status)}</td>
+      <td class="num">${smart(r.p50_now)}</td><td class="num">${smart(r.p50_ref)}</td>
+      <td class="num">${pct(r.miss_now)}</td><td class="num">${pct(r.miss_ref)}</td><td>${sparkline(idx.map(i => (p50[r.col] || [])[i]))}</td></tr>`;
+  });
+  el.innerHTML = h + "</tbody></table></div>";
+  el.querySelectorAll("th[data-k]").forEach(t => t.addEventListener("click", () => {
+    const k = t.dataset.k; ui.sort[group] = [k, ui.sort[group][0] === k ? -ui.sort[group][1] : (k === "col" ? 1 : -1)]; render(); }));
+  el.querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => onPick(tr.dataset.col)));
+}
+async function detail(el, group, col, docs) {
+  if (!col) { el.innerHTML = `<div class="card"><div class="empty">Pick a column in the table or the heatmap to see its spread over time.</div></div>`; return; }
+  el.innerHTML = `<div class="card"><h3>${esc(col)}</h3><div class="sub">${esc(docs[col] || "")}</div><div class="empty">Loading...</div></div>`;
+  let s;
+  try { s = await (await fetch(`/api/series?group=${group}&col=${encodeURIComponent(col)}`)).json(); } catch (e) { return; }
+  if (!s.t) { el.querySelector(".empty").textContent = "No data for this column."; return; }
+  const t = s.t.map(x => Date.parse(x)), lo = t.length ? t[t.length - 1] - RANGES[ui.range] * 3600e3 : 0;
+  const k = t.map((v, i) => v >= lo ? i : -1).filter(i => i >= 0), pick = a => k.map(i => a[i]);
+  el.innerHTML = "";
+  const c1 = card(col, esc(docs[col] || "") + " · per pass: median line, p25–p75 dark band, p10–p90 light band");
+  el.appendChild(c1);
+  chart(c1.querySelector(".plot"), pick(t), [{name: "median", v: pick(s.p50), color: "var(--s1)"}],
+    {band: {lo: pick(s.p10), hi: pick(s.p90), lo2: pick(s.p25), hi2: pick(s.p75)}, height: 200, label: col});
+  const c2 = card("Missing values", "share of the rows where this column has no value");
+  c2.style.marginTop = "12px"; el.appendChild(c2);
+  chart(c2.querySelector(".plot"), pick(t), [{name: "missing", v: pick(s.miss), color: "var(--s2)"}], {fmt: v => pct(v, 0), height: 120});
+}
+
+// ---------- tabs
+function rangeBar(extra = "") {
+  return `<div class="bar"><span class="lbl">Range</span><span class="seg" id="range">${Object.keys(RANGES).map(r =>
+    `<button aria-pressed="${ui.range === r}" data-r="${r}">${r === "all" ? "All" : r.replace("h", " h").replace("d", " d")}</button>`).join("")}</span>${extra}</div>`;
+}
+function wireRange(root) {
+  root.querySelectorAll("#range button").forEach(b => b.addEventListener("click", () => { ui.range = b.dataset.r; store.set("range", ui.range); render(); }));
+}
+function last(a) { for (let i = a.length - 1; i >= 0; i--) if (a[i] != null) return i; return -1; }
+function idxChange(hours) {
+  const P = D.passes, i = last(P.idx); if (i < 0) return null;
+  const tt = T[i] - hours * 3600e3; let j = i; while (j > 0 && T[j - 1] >= tt) j--;
+  return j === i ? null : P.idx[i] / P.idx[j] - 1;
+}
+function counts(rows) { const c = {ok: 0, watch: 0, drift: 0, none: 0}; rows.forEach(r => c[r.status]++); return c; }
+
+function overview(m) {
+  const P = D.passes, n = T.length, i = n - 1;
+  const recent = P.books.slice(Math.max(0, n - 11), n - 1).filter(v => v != null).sort((a, b) => a - b);
+  const typical = recent.length ? recent[Math.floor(recent.length / 2)] : null;
+  const sc = counts(D.scrape.table), ft = D.features ? counts(D.features.train.length ? D.features.train : D.features.week) : null;
+  const wk = T[i] - 7 * 86400e3, gaps = D.gaps.filter(g => Date.parse(g.to) >= wk);
+  const worst = (rows) => rows.find(r => r.status !== "none");
+  const S = A && A.stats, st = A && A.state;
+  const tiles = [
+    ["Agent", !A ? "–" : A.error ? "not readable" : st.running ? `Running · ${st.mode === "auto" ? "AUTO" : "manual"}` : "Not running",
+      !A || A.error ? (A ? esc(A.error.slice(0, 60)) : "loading") : `${st.kill ? "kill switch ON · " : ""}${st.paused ? "buys paused · " : ""}realised ${skeys(S.pnl_keys)} · holding ${S.held}`, "agent"],
+    ["Last pass", ago(T[i]), `${num(P.books[i], 0)} books · usual ${num(typical, 0)}`, null],
+    ["Buy-order index, 24 h", spct(idxChange(24)), `7 d ${spct(idxChange(168))} · now ${num(P.idx[i], 2)}`, "economy"],
+    ["Items moving, last pass", `${pct(P.up[i], 0)} up`, `${pct(P.down[i], 0)} down · ${pct(P.flat[i], 0)} flat (under ±${D.meta.flat * 100}%)`, "economy"],
+    ["Scrape drift, 24 h vs 7 d", `${sc.drift} drifted`, `${sc.watch} moving · ${sc.ok} stable · worst ${worst(D.scrape.table) ? esc(worst(D.scrape.table).col) : "–"}`, "scrape"],
+    ["Feature drift", ft ? `${ft.drift} drifted` : "building", ft ? `${ft.watch} moving · ${ft.ok} stable, last 24 h ${D.features.train.length ? "vs training" : "vs 7 d"}` : "the first summary takes a few minutes", "features"],
+    ["Collector gaps, 7 d", `${gaps.length}`, gaps.length ? `longest ${Math.max(...gaps.map(g => g.hours))} h without a pass` : `no stretch over the gap rule without a pass`, null],
+  ];
+  m.innerHTML = rangeBar() + `<div class="tiles">${tiles.map(t => `<div class="tile ${t[3] ? "link" : ""}" data-go="${t[3] || ""}"><div class="k">${t[0]}</div><div class="v">${t[1]}</div><div class="s">${t[2]}</div></div>`).join("")}</div><div class="grid2" id="g"></div>
+    <div class="grid2" style="margin-top:12px"><div class="card"><h3>Most drifted: scrape</h3><div class="sub">last ${D.meta.now_h} h vs the ${D.meta.ref_days} days before</div><div id="w1"></div></div>
+    <div class="card"><h3>Most drifted: model features</h3><div class="sub">${D.features && D.features.train.length ? "last " + D.meta.now_h + " h vs the live model's training data" : "last " + D.meta.now_h + " h vs the " + D.meta.ref_days + " days before"}</div><div id="w2"></div></div></div>`;
+  m.querySelectorAll(".tile[data-go]").forEach(t => t.dataset.go && t.addEventListener("click", () => setTab(t.dataset.go)));
+  wireRange(m);
+  const g = m.querySelector("#g");
+  passChart(g, "Buy-order index", `every item's top-buy-order move, averaged (log, clipped at ±${D.meta.idx_clip * 100}%) and chained; 100 at the first pass`, [["idx", "index"]]);
+  passChart(g, "Items whose top buy order moved", "share of items with a move since their last pass", [["up", "up"], ["down", "down"]], {colors: ["var(--up)", "var(--down)"], fmt: v => pct(v, 0)});
+  const mini = (el, rows, tab) => { el.innerHTML = rows.length ? `<table><tbody>${rows.slice(0, 6).map(r => `<tr data-col="${esc(r.col)}"><td>${esc(r.col)}</td><td class="num">${r.psi == null ? "–" : r.psi.toFixed(3)}</td><td>${chip(r.status)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">Not summarised yet.</div>';
+    el.querySelectorAll("tr").forEach(tr => tr.addEventListener("click", () => { if (tab === "scrape") ui.scrapeSel = tr.dataset.col; else ui.featSel = tr.dataset.col; setTab(tab); })); };
+  mini(m.querySelector("#w1"), D.scrape.table, "scrape");
+  mini(m.querySelector("#w2"), D.features ? (D.features.train.length ? D.features.train : D.features.week) : [], "features");
+}
+
+function economy(m) {
+  m.innerHTML = rangeBar() + `<div class="grid2" id="g"></div><p class="note">Every Unique and Strange item the collector reads each pass, through the engine's book rules (misread bids blanked, as the model reads them). A "move" is an item's best fenced bid against its own previous pass within the gap rule.</p>`;
+  wireRange(m);
+  const g = m.querySelector("#g"), P = D.passes, idx = rangeIdx(), base = idx.length ? P.idx[idx.find(i => P.idx[i] != null) ?? idx[0]] : 1;
+  passChart(g, "Buy-order index", "chained average top-buy-order move; 100 at the start of the range", [["idx", "index", i => P.idx[i] == null ? null : 100 * P.idx[i] / base]]);
+  passChart(g, "Average top-buy-order move per pass", `mean of every item's move (log, clipped at ±${D.meta.idx_clip * 100}%)`, [["idx_log", "average move", i => P.idx_log[i] == null ? null : Math.expm1(P.idx_log[i])]], {bars: true, fmt: v => spct(v, 2)});
+  passChart(g, "Items moving up and down", `share of items with a move; flat = under ±${D.meta.flat * 100}%`, [["up", "up"], ["down", "down"]], {colors: ["var(--up)", "var(--down)"], fmt: v => pct(v, 0)});
+  passChart(g, "Median spread", "(best ask - best bid) / best bid, the middle item", [["spread_med", "median spread"]], {fmt: v => pct(v, 1)});
+  passChart(g, "Listings on the books", "buy and sell listings the site reports, summed over every item", [["buy_total", "buy listings"], ["sell_total", "sell listings"]], {fmt: v => Math.round(v).toLocaleString()});
+  passChart(g, "Key rate", "the rate the books were priced at, ref", [["key_ref", "ref per key"]], {fmt: v => v.toFixed(2)});
+  passChart(g, "Steps and new highs", "items whose bid stepped up ≥ 2% and held; new highs are steps above the prior 24 h high", [["steps", "steps"], ["new_highs", "new highs"]], {fmt: v => Math.round(v)});
+  passChart(g, "Top bid held by a bot", "share of books whose best fenced bid is a bp.tf bot", [["top_bot", "bot at the top"]], {fmt: v => pct(v, 0)});
+}
+
+function scrape(m) {
+  m.innerHTML = rangeBar() + `<h2>Collection</h2><div class="grid2" id="g"></div>
+    <h2>Drift per column, per day</h2><div class="card"><div class="sub">PSI of each day's values against the ${D.meta.ref_days} days before it. Click a row to open it.</div><div class="heatwrap" id="heat"></div>${heatLegend()}</div>
+    <h2>Last ${D.meta.now_h} h against the ${D.meta.ref_days} days before</h2><div class="two"><div class="card" id="tbl"></div><div id="det"></div></div>`;
+  wireRange(m);
+  const g = m.querySelector("#g");
+  passChart(g, "Books per pass", "Unique and Strange books stored per pass", [["books", "books"]], {fmt: v => Math.round(v).toLocaleString()});
+  passChart(g, "Pass length", "minutes from a pass's start to its end", [["minutes", "minutes"]], {fmt: v => v.toFixed(1)});
+  passChart(g, "Items appearing and vanishing", "against the pass before", [["new", "new"], ["gone", "gone"]], {fmt: v => Math.round(v)});
+  passChart(g, `Books at the ${30}-listing cap`, "share of books whose side came back full (more exist)", [["capped_buy", "buy side"], ["capped_sell", "sell side"]], {fmt: v => pct(v, 0)});
+  const pick = c => { ui.scrapeSel = c; render(); };
+  const rows = D.scrape.table.map(r => r.col);
+  heatmap(m.querySelector("#heat"), D.scrape.heat, rows, pick);
+  driftTable(m.querySelector("#tbl"), "scrape", D.scrape.table, D.scrape.docs, ui.scrapeSel, pick);
+  detail(m.querySelector("#det"), "scrape", ui.scrapeSel, D.scrape.docs);
+}
+
+function features(m) {
+  if (!D.features) { m.innerHTML = `<div class="empty">The model's features are being summarised for the first time (it builds the forecast frame, a few minutes). This tab fills in on its own.</div>`; return; }
+  const F = D.features, hasTrain = F.train.length > 0;
+  if (!hasTrain && ui.featRef === "train") ui.featRef = "week";
+  const groups = ["all", ...new Set(Object.values(F.groups))];
+  const ref = `<span class="lbl">Compare the last ${D.meta.now_h} h with</span><span class="seg" id="ref">
+    <button aria-pressed="${ui.featRef === "train"}" data-v="train" ${hasTrain ? "" : "disabled"}>the model's training data</button>
+    <button aria-pressed="${ui.featRef === "week"}" data-v="week">the ${D.meta.ref_days} days before</button></span>
+    <span class="lbl">Group</span><span class="seg" id="grp">${groups.map(x => `<button aria-pressed="${ui.featGroup === x}" data-v="${x}">${x}</button>`).join("")}</span>`;
+  const rows = (ui.featRef === "train" ? F.train : F.week).filter(r => ui.featGroup === "all" || F.groups[r.col] === ui.featGroup);
+  const c = counts(rows);
+  const heatRows = rows.slice().sort((a, b) => (b.psi ?? -1) - (a.psi ?? -1)).map(r => r.col);
+  const shown = ui.heatAll ? heatRows : heatRows.slice(0, 30);
+  m.innerHTML = rangeBar(ref) + `<div class="tiles">
+      <div class="tile"><div class="k">Drifted</div><div class="v">${c.drift}</div><div class="s">PSI over ${D.meta.psi_drift}</div></div>
+      <div class="tile"><div class="k">Moving</div><div class="v">${c.watch}</div><div class="s">PSI ${D.meta.psi_watch}–${D.meta.psi_drift}</div></div>
+      <div class="tile"><div class="k">Stable</div><div class="v">${c.ok}</div><div class="s">of ${rows.length} features</div></div>
+      <div class="tile"><div class="k">Live model trained to</div><div class="v" style="font-size:17px">${D.meta.train_end ? when(Date.parse(D.meta.train_end)) : "no saved model"}</div><div class="s">its newest training label</div></div></div>
+    <h2>Drift per feature, per day</h2><div class="card"><div class="sub">PSI of each day against the ${D.meta.ref_days} days before it, on the rows the model learns from (spread ≤ 10%). ${heatRows.length > 30 ? `<a href="#" id="all">${ui.heatAll ? "Show the 30 worst" : `Show all ${heatRows.length}`}</a>` : ""}</div><div class="heatwrap" id="heat"></div>${heatLegend()}</div>
+    <h2>Per feature</h2><div class="two"><div class="card" id="tbl"></div><div id="det"></div></div>
+    <p class="note">A missing share that differs between now and the reference counts as drift (missing is a bin of its own): features over 24 h or 72 h were missing in the first days of collection and after collector gaps. The market-wide features (market_up_share, mkt_lvl_up_share) carry one value per pass for every item, so their PSI swings much more than an item-level feature's.</p>`;
+  wireRange(m);
+  m.querySelectorAll("#ref button").forEach(b => b.addEventListener("click", () => { ui.featRef = b.dataset.v; store.set("featRef", ui.featRef); render(); }));
+  m.querySelectorAll("#grp button").forEach(b => b.addEventListener("click", () => { ui.featGroup = b.dataset.v; render(); }));
+  const all = m.querySelector("#all"); if (all) all.addEventListener("click", e => { e.preventDefault(); ui.heatAll = !ui.heatAll; render(); });
+  const pick = col => { ui.featSel = col; render(); };
+  heatmap(m.querySelector("#heat"), F.heat, shown, pick);
+  driftTable(m.querySelector("#tbl"), "features", rows, F.docs, ui.featSel, pick);
+  detail(m.querySelector("#det"), "features", ui.featSel, F.docs);
+}
+
+// ---------- the agent
+const skeys = v => v == null ? "–" : (v >= 0 ? "+" : "") + v.toFixed(4) + " keys";
+const k4 = v => v == null ? "–" : (+v).toFixed(4);
+const cls = v => v == null ? "" : v >= 0 ? "pos" : "neg";
+function toast(msg, ms = 6000) { const t = $("#toast"); t.textContent = msg; t.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", ms); }
+async function loadAgent() {
+  try { A = await (await fetch("/api/agent", {cache: "no-store"})).json(); } catch (e) { A = {error: "panel server not reachable"}; }
+}
+async function act(action, args, question) {
+  if (question && !confirm(question)) return;
+  let r;
+  try {
+    r = await (await fetch("/api/action", {method: "POST", headers: {"Content-Type": "application/json", "X-Panel-Token": TOKEN},
+      body: JSON.stringify({action, args: args || {}})})).json();
+  } catch (e) { toast("The panel server did not answer."); return; }
+  toast((r.ok ? "Done: " : "Not done: ") + (r.output || r.error || ""), r.ok ? 6000 : 12000);
+  limitsDirty = false;
+  await loadAgent(); render();
+}
+function countdown() {
+  const el = document.getElementById("next"); if (!el || !A || !A.state || !A.state.next_cycle_at) return;
+  const s = Math.round((Date.parse(A.state.next_cycle_at) - Date.now()) / 1000);
+  el.textContent = s >= 0 ? `next cycle in ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : `next cycle due ${-s} s ago`;
+}
+setInterval(countdown, 1000);
+
+function agentTab(m) {
+  if (!A) { m.innerHTML = '<div class="empty">Loading the agent...</div>'; loadAgent().then(render); return; }
+  if (A.error) { m.innerHTML = `<div class="card"><h3>The agent's data is not readable</h3><div class="mono">${esc(A.error)}</div></div>`; return; }
+  const st = A.state, S = A.stats, L = A.limits || {}, bt = A.backtest;
+  const held = A.rows.filter(r => ["open", "closing", "opening"].includes(r.state));
+  const closed = A.rows.filter(r => r.state === "closed").sort((a, b) => Date.parse(b.sold_at || 0) - Date.parse(a.sold_at || 0));
+  const pend = Object.entries(st.pending || {});
+  const stale = pend.filter(([k, v]) => Date.now() - Date.parse(v.slice(0, 24)) > 15 * 60e3);
+  m.innerHTML = `<div class="ctl">
+    <div class="card"><div class="k lbl">The agent</div>
+      <div class="state"><span class="dot ${st.running ? "" : "err"}"></span>${st.running ? `Running · ${st.mode === "auto" ? "AUTO, no approvals" : "approving each trade"}` : "Not running"}</div>
+      <div class="why">${st.running ? `process ${st.pid}, started ${st.started_at ? ago(Date.parse(st.started_at)) : "?"}` : `the log last wrote ${st.last_line_at ? ago(Date.parse(st.last_line_at)) : "never"}`}</div>
+      <div class="why">${st.last_cycle ? `last cycle ${ago(Date.parse(st.last_cycle.at))}: ${esc(st.last_cycle.text)}` : "no cycle yet"}${st.running ? (st.cycle_since ? ` · a cycle is running, since ${ago(Date.parse(st.cycle_since))}` : ` · <span id="next"></span>`) : ""}</div>
+      <div class="row">${st.running ? `<button class="btn" data-a="cycle">Run a cycle now</button><button class="btn" data-a="restart">Restart after this cycle</button><button class="btn danger" data-a="shutdown">Shut down after this cycle</button>`
+        : `<button class="btn primary" data-a="start">Start the agent (AUTO)</button>`}</div>
+      ${pend.map(([k, v]) => `<div class="row why">Waiting for the agent: <b>${k}</b> (asked ${ago(Date.parse(v.slice(0, 24)))}) <button class="btn small" data-cancel="${k}">Take back</button></div>`).join("")}
+      ${stale.length ? `<div class="warn">A request has waited over 15 min. An agent started before restart support (2026-10-30) never takes one: close its window and start it again once.</div>` : ""}
+    </div>
+    <div class="card"><div class="k lbl">Kill switch</div>
+      <div class="state">${st.kill ? `<span class="chip drift"><i></i>ON</span> nothing is sent` : `<span class="chip ok"><i></i>off</span> sending allowed`}</div>
+      ${st.kill ? `<div class="why">${esc(st.kill)}</div>` : `<div class="why">On = no buy and no sale goes out until it is turned off; the agent keeps running and checking.</div>`}
+      <div class="row">${st.kill ? `<button class="btn" data-a="kill_off">Turn it off: allow sending</button>` : `<button class="btn danger" data-a="kill_on">Turn the kill switch on</button>`}</div>
+    </div>
+    <div class="card"><div class="k lbl">Buying</div>
+      <div class="state">${st.paused ? `<span class="chip watch"><i></i>paused</span> by the win-rate stop` : `<span class="chip ok"><i></i>allowed</span> inside the limits`}</div>
+      <div class="why">${st.paused ? esc(st.paused) : `Stops by itself when under ${pct(L.min_win_rate, 0)} of the last ${L.win_window} sales won${st.resumed_at ? `; counting sales since ${when(Date.parse(st.resumed_at))}` : ""}.`}</div>
+      <div class="row">${st.paused ? `<button class="btn" data-a="resume">Resume buying (new window of sales)</button>` : ""}</div>
+    </div></div>
+    <div class="tiles">
+      <div class="tile"><div class="k">Realised</div><div class="v ${cls(S.pnl_keys)}">${skeys(S.pnl_keys)}</div><div class="s">${S.closed} sales · ${S.abandoned} buys never filled</div></div>
+      <div class="tile"><div class="k">Return per sale</div><div class="v">${spct(S.per_trade)}</div><div class="s">backtest ${spct(bt.per_trade)}</div></div>
+      <div class="tile"><div class="k">Sales won</div><div class="v">${pct(S.win, 0)}</div><div class="s">backtest ${pct(bt.win, 0)} · on ${S.closed} sales</div></div>
+      <div class="tile"><div class="k">Holding</div><div class="v">${S.held}</div><div class="s">${k4(S.held_keys)} of ${L.max_keys_in_play ?? "?"} keys in play</div></div>
+      <div class="tile"><div class="k">Average hold</div><div class="v">${S.hours == null ? "–" : S.hours.toFixed(1) + " h"}</div><div class="s">by exit: ${Object.entries(S.by_reason || {}).map(([k, v]) => `${k} ${v.n}`).join(" · ") || "–"}</div></div>
+    </div>
+    <h2>Held now</h2><div class="card"><div class="tablewrap"><table><thead><tr><th>Item</th><th>State</th><th class="num">Paid</th><th class="num">Best bid seen</th><th class="num">Take-profit</th><th class="num">Bid vs TP</th><th class="num">Horizon</th><th>Change by hand</th></tr></thead><tbody>
+      ${held.length ? held.map(r => { const toTp = r.bid != null && r.take_profit_at ? r.bid / r.take_profit_at - 1 : null, hz = r.horizon_at ? (Date.parse(r.horizon_at) - Date.now()) / 3600e3 : null;
+        return `<tr data-no><td><a href="#" data-book="${r.id}">${esc(r.label)}</a></td><td>${r.state}</td><td class="num">${k4(r.entry_keys)}</td>
+        <td class="num">${k4(r.bid)}${r.bid_at ? `<div class="why">${ago(Date.parse(r.bid_at))}</div>` : ""}</td>
+        <td class="num">${k4(r.take_profit_at)}<div class="why">${r.take_profit_at && r.entry_keys ? spct(r.take_profit_at / r.entry_keys - 1, 1) : ""}</div></td>
+        <td class="num ${cls(toTp)}">${spct(toTp, 1)}</td><td class="num">${hz == null ? "–" : hz <= 0 ? "sell now" : hz.toFixed(1) + " h"}</td>
+        <td>${r.state === "open" ? `<div class="row"><button class="btn small" data-sell="${r.id}" data-l="${esc(r.label)}">Sell next cycle</button><button class="btn small" data-tp="${r.id}" data-l="${esc(r.label)}">Take-profit…</button><button class="btn small" data-hz="${r.id}" data-l="${esc(r.label)}">Horizon…</button></div>` : `<span class="why">${r.state === "closing" ? "a sale is out" : "buying"}</span>`}</td></tr>`; }).join("")
+        : `<tr data-no><td colspan="8" class="why">Nothing held.</td></tr>`}</tbody></table></div>
+      <p class="note">The exit rule reads these every cycle: "Sell next cycle" sells into the best tradable bid whatever it is (the sale is recorded as exit "manual"); the take-profit is a % over the price paid; the horizon is when it starts selling to the best bid. Best bid = the newest one the agent's exit check logged.</p></div>
+    <div class="grid2" style="margin-top:12px"><div class="card" id="pnl"></div>
+      <div class="card"><h3>Offers, by how they ended</h3><div class="sub">every offer the agent built; no answer = canceled after ${L.bot_wait_s ?? "?"} s, or never reached Steam</div>
+        <table><thead><tr><th></th><th class="num">Built</th><th class="num">Reached Steam</th><th class="num">Accepted</th><th class="num">Declined</th><th class="num">No answer</th><th class="num">Failed</th><th class="num">Open</th></tr></thead><tbody>
+        ${["buy", "sell"].map(k => { const f = A.funnel[k]; return `<tr data-no><td>${k === "buy" ? "Buys" : "Sales"}</td>${["offers", "reached_steam", "accepted", "declined", "no_answer", "failed", "open"].map(c => `<td class="num">${f[c]}</td>`).join("")}</tr>`; }).join("")}
+        </tbody></table></div></div>
+    <h2>Bots traded with</h2><div class="card"><div class="tablewrap" style="max-height:360px"><table><thead><tr><th>Bot</th><th class="num">Offers</th><th class="num">Accepted</th><th class="num">Accept rate</th><th class="num">Median time to accept</th><th class="num">No answer</th><th class="num">Declined</th><th class="num">Bought from</th><th class="num">Sold to</th></tr></thead><tbody>
+      ${A.bots.map(b => `<tr data-no><td>${esc(b.name || b.id)}${b.name ? `<div class="why">${b.id}</div>` : ""}</td><td class="num">${b.offers}</td><td class="num">${b.accepted}</td><td class="num">${pct(b.accept_rate, 0)}</td><td class="num">${b.median_accept_s == null ? "–" : b.median_accept_s.toFixed(1) + " s"}</td><td class="num">${b.no_answer}</td><td class="num">${b.declined}</td><td class="num">${b.bought_from}</td><td class="num">${b.sold_to}</td></tr>`).join("")}
+      </tbody></table></div></div>
+    <h2>Limits</h2><div class="card"><div class="sub">limits.json; the agent reads it again at every cycle${st.running ? " (an agent started before 2026-10-30 reads it only at start: restart it once)" : ""}. Every new buy must pass these; sales are never blocked by a limit.</div>
+      <table class="limits"><tbody>${Object.entries(L).map(([k, v]) => `<tr data-no><td>${k}</td><td><input data-key="${k}" value="${v}" inputmode="decimal"></td><td><button class="btn small" data-save="${k}" disabled>Save</button></td></tr>`).join("")}</tbody></table></div>
+    <h2>Recent sales</h2><div class="card"><div class="tablewrap" style="max-height:420px"><table><thead><tr><th>Item</th><th>Sold</th><th class="num">Paid</th><th class="num">Got</th><th class="num">Return</th><th>Exit</th><th class="num">Held</th><th>Sold to</th></tr></thead><tbody>
+      ${closed.slice(0, 30).map(r => `<tr data-no><td><a href="#" data-book="${r.id}">${esc(r.label)}</a></td><td>${r.sold_at ? when(Date.parse(r.sold_at)) : "–"}</td><td class="num">${k4(r.entry_keys)}</td><td class="num">${k4(r.exit_keys)}</td><td class="num ${cls(r.ret)}">${spct(r.ret, 1)}</td><td>${esc(r.exit_reason || "")}</td><td class="num">${r.held_h == null ? "–" : r.held_h.toFixed(1) + " h"}</td><td>${esc(r.buyer || "")}</td></tr>`).join("") || `<tr data-no><td colspan="8" class="why">No sales yet.</td></tr>`}
+      </tbody></table></div></div>
+    <div class="grid2" style="margin-top:12px">
+      <div class="card"><h3>Changes made by hand</h3><div class="sub">the ledger's position_events, newest first</div>
+        ${A.events.length ? `<table><tbody>${A.events.map(e => `<tr data-no><td>${when(Date.parse(e.at))}</td><td>${esc(e.item)}</td><td>${esc(e.what)}</td><td class="why">${esc(e.detail || "")}</td></tr>`).join("")}</tbody></table>` : '<div class="why">None yet.</div>'}</div>
+      <div class="card"><h3>The panel's actions</h3><div class="sub">backpack/logs/panel_actions.log, newest last</div><div class="mono">${esc((A.actions || []).join("\n")) || "None yet."}</div></div></div>
+    <h2>The agent's log</h2><div class="card"><div class="mono" id="log">${esc(A.log.join("\n"))}</div></div>`;
+  countdown();
+  const lg = m.querySelector("#log"); lg.scrollTop = lg.scrollHeight;
+  // realised profit over time
+  const sold = A.rows.filter(r => r.state === "closed" && r.sold_at).sort((a, b) => Date.parse(a.sold_at) - Date.parse(b.sold_at));
+  let run = 0; const pc = m.querySelector("#pnl");
+  pc.innerHTML = `<h3>Realised profit over time</h3><div class="sub">keys, summed sale by sale</div><div class="plot"></div>`;
+  chart(pc.querySelector(".plot"), sold.map(r => Date.parse(r.sold_at)), [{name: "realised", v: sold.map(r => (run += r.pnl_keys)), color: "var(--s1)"}], {fmt: v => (v >= 0 ? "+" : "") + v.toFixed(3), zero: true});
+  // buttons
+  const Q = {start: "Start the agent in AUTO mode in its own window? Every trade inside the limits goes out on its own.",
+    cycle: "Run the agent's next cycle now instead of waiting?",
+    restart: "Restart the agent after its current cycle? It finishes the cycle, exits, and starts again in the same window and mode (new code, fresh login).",
+    shutdown: "Shut the agent down after its current cycle? Nothing is bought or sold while it is off; start it again from here or its launcher.",
+    kill_on: "Turn the kill switch ON? No buy and no sale goes out until it is turned off.",
+    kill_off: "Turn the kill switch off? The agent may send offers again from its next cycle.",
+    resume: "Resume buying? A new window of sales starts now; only sales from now on count toward the win-rate stop."};
+  m.querySelectorAll("[data-a]").forEach(b => b.addEventListener("click", () => act(b.dataset.a, {}, Q[b.dataset.a])));
+  m.querySelectorAll("a[data-book]").forEach(a => a.addEventListener("click", e => { e.preventDefault();
+    const r = A.rows.find(x => String(x.id) === a.dataset.book); openBook(r.item, r.quality, r.id); }));
+  m.querySelectorAll("[data-cancel]").forEach(b => b.addEventListener("click", () => act("cancel", {name: b.dataset.cancel}, `Take back the ${b.dataset.cancel} request?`)));
+  m.querySelectorAll("[data-sell]").forEach(b => b.addEventListener("click", () => act("sell_now", {id: b.dataset.sell},
+    `Sell ${b.dataset.l} at the next cycle, into the best tradable bid whatever it is?`)));
+  m.querySelectorAll("[data-tp]").forEach(b => b.addEventListener("click", () => {
+    const v = prompt(`New take-profit for ${b.dataset.l}: percent over the price paid (the model's is 4)`, "4");
+    if (v == null) return; if (!(+v > 0 && +v <= 100)) { toast("A take-profit is a percent over 0 and up to 100."); return; }
+    act("take_profit", {id: b.dataset.tp, pct: +v}, `Set ${b.dataset.l}'s take-profit to +${+v}% over the price paid?`); }));
+  m.querySelectorAll("[data-hz]").forEach(b => b.addEventListener("click", () => {
+    const v = prompt(`Sell ${b.dataset.l} to the best bid from how many hours from now? (0-336, or "reset" for bought + 48 h)`, "24");
+    if (v == null) return; const reset = v.trim().toLowerCase() === "reset";
+    if (!reset && !(+v >= 0 && +v <= 336)) { toast("Hours from 0 to 336, or reset."); return; }
+    act("horizon", {id: b.dataset.hz, hours: reset ? "reset" : +v}, reset ? `Put ${b.dataset.l}'s horizon back to bought + 48 h?` : `Sell ${b.dataset.l} to the best bid from ${+v} h from now?`); }));
+  m.querySelectorAll("input[data-key]").forEach(inp => inp.addEventListener("input", () => {
+    limitsDirty = true; m.querySelector(`[data-save="${inp.dataset.key}"]`).disabled = String(L[inp.dataset.key]) === inp.value.trim(); }));
+  m.querySelectorAll("[data-save]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.save, v = m.querySelector(`input[data-key="${k}"]`).value.trim();
+    act("set_limit", {key: k, value: v}, `Set ${k} from ${L[k]} to ${v}? The agent uses it from its next cycle.`); }));
+}
+
+// ---------- books: what the held items are worth now, and any item's order book
+const QN = {1: "Genuine", 3: "Vintage", 6: "Unique", 11: "Strange", 13: "Haunted", 14: "Collector's"};
+// a good's kind, as /api/items names it: "craftable.elevated.australium.crate.target"
+const PLAIN = "1.0.0.0.0";
+function goodName(q, k, tn) {
+  const [c, e, a, cr, t] = (k || PLAIN).split(".").map(Number);
+  let n = (c ? "" : "Non-Craftable ") + (e ? "Strange " : "") + (QN[q] || "q" + q) + (a ? " Australium" : "");
+  if (cr) n += " #" + cr;
+  if (t) n += " → " + (tn || "target " + t);
+  return n;
+}
+const itemOf = (item, q, k) => (ITEMS || []).find(x => x[0] === item && x[1] === +q && x[2] === (k || PLAIN));
+const HIST = new Map(), BOOK = new Map();
+let ITEMS = null;
+ui.bk = store.get("bk", null);            // {item, q, pos, pick: "src|id" or null = the newest}
+ui.bkRange = store.get("bkRange", "since");
+ui.bkList = store.get("bkList", "held");  // the cards: "held" now or "sold"
+ui.bkSoldN = 12;                          // sold cards shown (12 more per click)
+const hkey = (item, q, k) => item + "|" + q + "|" + (k || PLAIN);
+function fetchHist(item, q, kind) {
+  const k = hkey(item, q, kind), h = HIST.get(k);
+  if (h && (h.loading || Date.now() - h.at < 90e3)) return h;
+  const n = {at: Date.now(), loading: true, data: h && h.data};
+  HIST.set(k, n);
+  fetch(`/api/item?item=${encodeURIComponent(item)}&q=${q}&k=${kind || PLAIN}`, {cache: "no-store"}).then(r => r.json())
+    .then(d => { n.data = d.error ? null : d; n.error = d.error; })
+    .catch(() => { n.error = "panel server not reachable"; })
+    .finally(() => { n.loading = false; n.at = Date.now(); if (ui.tab === "books") softRender(); });
+  return n;
+}
+function softRender() {
+  const a = document.activeElement;
+  if (a && a.matches("input, select")) return;      // typing in the search: the next refresh draws it
+  render();
+}
+const lastWith = (pts, k) => { for (let i = pts.length - 1; i >= 0; i--) if (pts[i][k] != null) return pts[i]; return null; };
+function openBook(item, q, pos, k) {
+  ui.bk = {item, q: +q, k: k || PLAIN, pos: pos ?? null, pick: null}; store.set("bk", ui.bk);
+  if (pos != null) { ui.bkRange = "since"; store.set("bkRange", ui.bkRange); }   // a trade opens on its own window
+  setTab("books");
+  const d = document.getElementById("bkdetail"); if (d) d.scrollIntoView({block: "start"});
+}
+function posOf(id) { return A && A.rows ? A.rows.find(r => r.id === id) : null; }
+const EXITS = {take_profit: "take-profit", horizon: "horizon", manual: "sold by hand"};
+// a sold trade's chart: 6 h before the buy to 12 h after the sale; a held one: 6 h before the buy on
+function tradeWindow(r) {
+  const b = r.bought_at || r.opened_at;
+  return {from: b ? Date.parse(b) - 6 * 3600e3 : -Infinity,
+          to: r.state === "closed" && r.sold_at ? Date.parse(r.sold_at) + 12 * 3600e3 : Infinity};
+}
+function posLines(r) {
+  if (!r) return {refs: [], marks: []};
+  const refs = [{v: r.entry_keys, name: "paid", color: "var(--ink-2)"}];
+  if (r.state === "closed") refs.push({v: r.exit_keys, name: "sold", color: r.pnl_keys >= 0 ? "var(--good)" : "var(--critical)"});
+  else refs.push({v: r.take_profit_at, name: "take-profit", color: "var(--good)"});
+  const marks = [{t: r.bought_at ? Date.parse(r.bought_at) : null, name: "bought", color: "var(--muted)"}];
+  if (r.state === "closed") marks.push({t: r.sold_at ? Date.parse(r.sold_at) : null, name: "sold", color: "var(--muted)"});
+  else marks.push({t: r.horizon_at ? Date.parse(r.horizon_at) : null, name: "horizon", color: "var(--critical)"});
+  return {refs, marks};
+}
+
+function booksTab(m) {
+  if (!A) { m.innerHTML = '<div class="empty">Loading the agent...</div>'; loadAgent().then(render); return; }
+  if (A.error) { m.innerHTML = `<div class="card"><h3>The agent's data is not readable</h3><div class="mono">${esc(A.error)}</div></div>`; return; }
+  if (!ITEMS) { ITEMS = []; fetch("/api/items").then(r => r.json()).then(d => { ITEMS = d; if (ui.tab === "books") softRender(); }).catch(() => {}); }
+  const rows = A.rows || [];
+  const held = rows.filter(r => ["open", "closing", "opening"].includes(r.state) && r.item);
+  const sold = rows.filter(r => r.state === "closed" && r.item).sort((a, b) => Date.parse(b.sold_at || 0) - Date.parse(a.sold_at || 0));
+  const list = ui.bkList === "sold" ? "sold" : "held";
+  // what the held items would fetch now: the newest best tradable bid in the stored books
+  let paid = 0, worth = 0, priced = 0;
+  const now = held.map(r => { const h = fetchHist(r.item, r.quality), pts = h.data ? h.data.points : [];
+    const lp = lastWith(pts, "tbid");
+    if (lp && r.entry_keys) { paid += r.entry_keys; worth += lp.tbid; priced++; }
+    return {r, h, pts, lp}; });
+  const un = worth - paid;
+  m.innerHTML = `<div class="tiles">
+      <div class="tile"><div class="k">Held items, worth now</div><div class="v">${priced ? k4(worth) : "–"}</div><div class="s">${priced ? `sold into today's best tradable bids · paid ${k4(paid)}` : held.length ? "reading their books…" : "nothing held"}</div></div>
+      <div class="tile"><div class="k">Unrealised</div><div class="v ${cls(priced ? un : null)}">${priced ? skeys(un) : "–"}</div><div class="s">${priced ? `${spct(un / paid, 1)} on ${priced} of ${held.length} held` : "–"}</div></div>
+      <div class="tile"><div class="k">Realised so far</div><div class="v ${cls(A.stats && A.stats.pnl_keys)}">${skeys(A.stats && A.stats.pnl_keys)}</div><div class="s">${A.stats ? `${A.stats.closed} sales · ${pct(A.stats.win, 0)} won` : "0 sales"}</div></div>
+    </div>
+    <div class="bar" style="margin:18px 0 8px"><span class="seg" id="bklist">
+      <button aria-pressed="${list === "held"}" data-v="held">Held now (${held.length})</button>
+      <button aria-pressed="${list === "sold"}" data-v="sold">Sold (${sold.length})</button></span></div>
+    <div class="grid2" id="heldg">${(list === "held" ? held : sold).length ? "" : `<div class="card"><div class="empty">${list === "held" ? "Nothing held." : "Nothing sold yet."}</div></div>`}</div>
+    ${list === "sold" && sold.length > ui.bkSoldN ? `<div style="margin-top:10px"><button class="btn" id="bkmore">Show ${Math.min(12, sold.length - ui.bkSoldN)} more (${sold.length - ui.bkSoldN} older)</button></div>` : ""}
+    <p class="note">${list === "held"
+      ? "Blue = the best bid the agent could sell into (bot + instant, trusted, trade URL known), from every stored book: the hourly passes and the agent's own ~10-min checks of what it holds. Orange = the lowest ask. Dashed: what we paid and the take-profit; the red dotted line is the horizon, when it starts selling to the best bid. Click a card for its order books."
+      : "Newest sale first. Each chart is the trade: 6 h before the buy to 12 h after the sale. Blue = the best bid the agent could sell into, orange = the lowest ask; dashed: what we paid and what we sold at. \"Its bid now\" compares the item's sell-now bid today with the price we sold at: above 0 = it kept rising after we sold. Click a card for its order books, before, during and after the trade."}</p>
+    <h2 id="bkdetail">Order books, any item</h2>
+    <div class="card"><div class="search">
+      <input id="bkq" list="bkitems" placeholder="item name, e.g. Socked and Loaded" value="${esc(ui.bk ? (ui.bk.k && ui.bk.k !== PLAIN ? ui.bk.item + " · " + goodName(ui.bk.q, ui.bk.k, (itemOf(ui.bk.item, ui.bk.q, ui.bk.k) || [])[3]) : ui.bk.item) : "")}" autocomplete="off">
+      <datalist id="bkitems">${(ITEMS || []).map(x => `<option value="${esc(x[0] + " · " + goodName(x[1], x[2], x[3]))}">`).join("")}</datalist>
+      <select id="bkqual">${Object.entries(QN).map(([q, n]) => `<option value="${q}" ${ui.bk && ui.bk.q === +q ? "selected" : ""}>${n}</option>`).join("")}</select>
+      <button class="btn primary" id="bkgo">Open</button></div>
+      <div class="chips">${held.length ? `<span class="lbl" style="align-self:center">held:</span>` : ""}${held.map(r => `<button class="btn small" data-open="${r.id}">${esc(r.label)}</button>`).join("")}</div>
+    </div>
+    <div id="bkitem" style="margin-top:12px"></div>`;
+  m.querySelectorAll("#bklist button").forEach(b => b.addEventListener("click", () => { ui.bkList = b.dataset.v; store.set("bkList", ui.bkList); render(); }));
+  const more = m.querySelector("#bkmore"); if (more) more.addEventListener("click", () => { ui.bkSoldN += 12; render(); });
+  const hg = m.querySelector("#heldg");
+  // sold cards: the trade, and where the item's bid is now
+  if (list === "sold") sold.slice(0, ui.bkSoldN).forEach(r => {
+    const h = fetchHist(r.item, r.quality), pts = h.data ? h.data.points : [], lp = lastWith(pts, "tbid");
+    const c = document.createElement("div"); c.className = "card held" + (ui.bk && ui.bk.pos === r.id ? " on" : "");
+    const after = lp && r.exit_keys ? lp.tbid / r.exit_keys - 1 : null;
+    c.innerHTML = `<h3>${esc(r.label)}</h3>
+      <div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap"><span class="big ${cls(r.ret)}">${spct(r.ret, 1)}</span>
+        <span class="why">paid ${k4(r.entry_keys)} → sold ${k4(r.exit_keys)} (${skeys(r.pnl_keys)}) · ${esc(EXITS[r.exit_reason] || r.exit_reason || "")}${r.held_h == null ? "" : ` · held ${r.held_h.toFixed(1)} h`}${r.buyer ? ` · to ${esc(r.buyer)}` : ""}</span></div>
+      <div class="sub">sold ${r.sold_at ? when(Date.parse(r.sold_at)) : "–"}${after != null ? ` · its bid now ${k4(lp.tbid)}, <span class="${cls(after)}">${spct(after, 1)}</span> vs what we sold at` : h.error ? " · " + esc(h.error) : h.loading ? " · reading its books…" : ""}</div><div class="plot"></div>`;
+    hg.appendChild(c);
+    c.addEventListener("click", () => openBook(r.item, r.quality, r.id));
+    const w = tradeWindow(r), sel = pts.filter(p => { const x = Date.parse(p.t); return x >= w.from && x <= w.to; });
+    if (!sel.length) return;
+    const {refs, marks} = posLines(r);
+    chart(c.querySelector(".plot"), sel.map(p => Date.parse(p.t)), [{name: "sell-now bid", v: sel.map(p => p.tbid), color: "var(--s1)"},
+        {name: "lowest ask", v: sel.map(p => p.ask1), color: "var(--s2)", w: 1.5}], {refs, marks, fmt: k4, height: 170});
+  });
+  // held cards
+  if (list === "held") now.forEach(({r, h, pts, lp}) => {
+    const c = document.createElement("div"); c.className = "card held" + (ui.bk && ui.bk.pos === r.id ? " on" : "");
+    const ret = lp && r.entry_keys ? lp.tbid / r.entry_keys - 1 : null, hz = r.horizon_at ? (Date.parse(r.horizon_at) - Date.now()) / 3600e3 : null;
+    const toTp = lp && r.take_profit_at ? r.take_profit_at / lp.tbid - 1 : null;
+    c.innerHTML = `<h3>${esc(r.label)}</h3>
+      <div style="display:flex;gap:14px;align-items:baseline;flex-wrap:wrap"><span class="big ${cls(ret)}">${spct(ret, 1)}</span>
+        <span class="why">paid ${k4(r.entry_keys)} · sell-now ${k4(lp && lp.tbid)}${lp && lp.tbid_user ? ` (${esc(lp.tbid_user)})` : ""} · take-profit ${k4(r.take_profit_at)}${toTp != null && toTp > 0 ? `, ${spct(toTp, 1)} away` : ""}${hz == null ? "" : hz <= 0 ? " · past the horizon: selling" : ` · horizon in ${hz.toFixed(1)} h`}</span></div>
+      <div class="sub">${lp ? `newest book ${ago(Date.parse(lp.t))}` : h.error ? esc(h.error) : "reading its books…"}</div><div class="plot"></div>`;
+    hg.appendChild(c);
+    c.addEventListener("click", () => openBook(r.item, r.quality, r.id));
+    if (!pts.length) return;
+    const from = (r.bought_at ? Date.parse(r.bought_at) : Date.parse(pts[0].t)) - 6 * 3600e3;
+    const sel = pts.filter(p => Date.parse(p.t) >= from), t = sel.map(p => Date.parse(p.t));
+    if (!sel.length) return;
+    const {refs, marks} = posLines(r), hzT = marks[1].t;
+    chart(c.querySelector(".plot"), t, [{name: "sell-now bid", v: sel.map(p => p.tbid), color: "var(--s1)"},
+        {name: "lowest ask", v: sel.map(p => p.ask1), color: "var(--s2)", w: 1.5}],
+      {refs, marks, fmt: k4, height: 170, x1: hzT && hzT > t[t.length - 1] && hzT - Date.now() < 48 * 3600e3 ? hzT : undefined});
+  });
+  // search
+  const go = () => { const v = m.querySelector("#bkq").value.trim(); if (!v) return;
+    // a label picked from the list names the good exactly; a bare name takes the quality picked
+    const g = (ITEMS || []).find(x => x[0] + " · " + goodName(x[1], x[2], x[3]) === v);
+    const item = g ? g[0] : v, q = g ? g[1] : +m.querySelector("#bkqual").value, k = g ? g[2] : PLAIN;
+    const hit = k === PLAIN ? held.find(r => r.item === item && r.quality === q) : null;
+    openBook(item, q, hit ? hit.id : null, k); };
+  m.querySelector("#bkgo").addEventListener("click", go);
+  m.querySelector("#bkq").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); go(); } });
+  m.querySelectorAll("[data-open]").forEach(b => b.addEventListener("click", () => { const r = posOf(+b.dataset.open); openBook(r.item, r.quality, r.id); }));
+  itemDetail(m.querySelector("#bkitem"));
+}
+
+const BK_RANGES = {since: null, "24h": 24, "7d": 168, "30d": 720, all: Infinity};
+function itemDetail(el) {
+  ui.bkStep = null;
+  if (!ui.bk) { el.innerHTML = `<div class="card"><div class="empty">Pick a held or sold item above, or type any item's name, to see its price over time and the full order book behind any point.</div></div>`; return; }
+  const {item, q} = ui.bk, k = ui.bk.k || PLAIN, r = ui.bk.pos != null ? posOf(ui.bk.pos) : null;
+  const h = fetchHist(item, q, k), pts = h.data ? h.data.points : [];
+  const g = itemOf(item, q, k);
+  const title = `${esc(item)} (${esc(goodName(q, k, g && g[3]))})${g && !g[4] ? ` <span class="lbl">collected only, not traded</span>` : ""}`;
+  if (!pts.length) { el.innerHTML = `<div class="card"><h3>${title}</h3><div class="empty">${h.loading ? "Reading its books…" : h.error ? esc(h.error) : "No stored books for this item and quality. Check the name (pick it from the list) and the quality."}</div></div>`; return; }
+  let rng = ui.bkRange; if (rng === "since" && !r) rng = "7d";
+  const end = Date.parse(pts[pts.length - 1].t);
+  const w = rng === "since" ? tradeWindow(r) : {from: end - BK_RANGES[rng] * 3600e3, to: Infinity};
+  let vis = pts.filter(p => { const x = Date.parse(p.t); return x >= w.from && x <= w.to; });
+  if (!vis.length) vis = pts.slice(-1);
+  const t = vis.map(p => Date.parse(p.t));
+  let pi = ui.bk.pick ? vis.findIndex(p => p.src + "|" + p.id === ui.bk.pick) : -1;
+  if (pi < 0) pi = vis.length - 1;
+  const p = vis[pi], {refs, marks} = posLines(r);
+  el.innerHTML = `<div class="card"><h3>${title}${r ? ` · ${r.state === "closed" ? `sold ${spct(r.ret, 1)}` : "held"}` : ""}</h3>
+      <div class="bar" style="margin:6px 0"><span class="seg" id="bkr">${Object.keys(BK_RANGES).filter(k => k !== "since" || r).map(k =>
+        `<button aria-pressed="${rng === k}" data-r="${k}">${k === "since" ? (r.state === "closed" ? "the trade" : "since bought") : k === "all" ? "All" : k.replace("h", " h").replace("d", " d")}</button>`).join("")}</span>
+        <span class="lbl">${vis.length} stored books · click the chart to open the book at that time · ← / → step</span></div>
+      <div class="legend"><span><i style="background:var(--s1)"></i>sell-now bid (tradable)</span><span><i style="background:var(--s3)"></i>top bid, any</span><span><i style="background:var(--s2)"></i>lowest ask</span></div>
+      <div class="plot"></div></div>
+    <div class="card" style="margin-top:12px" id="bkbook"></div>`;
+  el.querySelectorAll("#bkr button").forEach(b => b.addEventListener("click", () => { ui.bkRange = b.dataset.r; store.set("bkRange", ui.bkRange); render(); }));
+  const pick = i => { ui.bk.pick = i === vis.length - 1 ? null : vis[i].src + "|" + vis[i].id; store.set("bk", ui.bk); redraw(() => itemDetail(el)); };
+  chart(el.querySelector(".plot"), t, [{name: "sell-now bid", v: vis.map(x => x.tbid), color: "var(--s1)"},
+      {name: "top bid, any", v: vis.map(x => x.bid1), color: "var(--s3)", w: 1.2, dash: "3 3"},
+      {name: "lowest ask", v: vis.map(x => x.ask1), color: "var(--s2)", w: 1.5}],
+    {refs, marks, fmt: k4, height: 240, sel: pi, onPick: pick,
+     x1: rng === "since" && r.state !== "closed" && marks[1].t > t[t.length - 1] && marks[1].t - Date.now() < 48 * 3600e3 ? marks[1].t : undefined,
+     tipExtra: i => `<div class="why">${vis[i].tbid_user ? "sell-now bid from " + esc(vis[i].tbid_user) : "no tradable bid"} · ${vis[i].n_buy} buys / ${vis[i].n_sell} sells · ${vis[i].src === "watch" ? "agent's check" : "hourly pass"}</div>`});
+  ui.bkStep = d => { const j = pi + d; if (j >= 0 && j < vis.length) pick(j); };
+  bookView(el.querySelector("#bkbook"), p, pi, vis.length, r);
+}
+
+function bookView(el, p, pi, n, r) {
+  const key = p.src + "|" + p.id, b = BOOK.get(key);
+  const pager = `<div class="pager"><button class="btn small" id="bkp" ${pi <= 0 ? "disabled" : ""}>◀ older</button>
+      <b>${when(Date.parse(p.t))}</b><span class="why">${p.src === "watch" ? "the agent's own check" : "an hourly pass"} · book ${pi + 1} of ${n}</span>
+      <button class="btn small" id="bkn" ${pi >= n - 1 ? "disabled" : ""}>newer ▶</button><button class="btn small" id="bkl" ${pi >= n - 1 ? "disabled" : ""}>newest</button></div>`;
+  const wire = () => { el.querySelector("#bkp").onclick = () => ui.bkStep(-1); el.querySelector("#bkn").onclick = () => ui.bkStep(1);
+    el.querySelector("#bkl").onclick = () => ui.bkStep(n - 1 - pi); };
+  if (b === undefined) {
+    el.innerHTML = pager + `<div class="why" style="padding:14px 0">Reading the book…</div>`; wire();
+    BOOK.set(key, null);
+    fetch(`/api/book?src=${p.src}&id=${p.id}`).then(x => x.json()).catch(() => ({error: "panel server not reachable"}))
+      .then(d => { BOOK.set(key, d); if (el.isConnected) bookView(el, p, pi, n, r); });
+    return;
+  }
+  if (b === null) { el.innerHTML = pager + `<div class="why" style="padding:14px 0">Reading the book…</div>`; return wire(); }
+  if (b.error) { el.innerHTML = pager + `<div class="why">${esc(b.error)}</div>`; return wire(); }
+  const ref = v => v == null || !b.key_ref ? "" : ` (${(v * b.key_ref).toFixed(2)} ref)`;
+  const side = (title, rows, sum, isBuy) => {
+    const res = isBuy ? `bid1 <b>${k4(b.prices.bid1)}</b> · bid5 ${k4(b.prices.bid5)}` : `ask1 <b>${k4(b.prices.ask1)}</b> · ask5 ${k4(b.prices.ask5)}`;
+    const body = rows.map(x => {
+      const drop = x.reason !== "kept", ok = x.agent === null;
+      const vsPaid = r && r.entry_keys && isBuy && ok && x.tk != null ? x.tk / r.entry_keys - 1 : null;
+      const user = x.steamId ? `<a href="https://steamcommunity.com/profiles/${encodeURIComponent(x.steamId)}" target="_blank" rel="noopener">${esc(x.user || x.steamId)}</a>` : esc(x.user || "?");
+      const tags = [x.bot ? "bot" : "human", x.deal || "", x.premium ? "premium" : ""].filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join("") + (x.flags || []).map(t => `<span class="tag">${esc(t)}</span>`).join("");
+      return `<tr data-no class="${drop ? "drop" : x.role ? "used" : ""}"><td class="num">${k4(x.tk)}<div class="why">${esc(x.raw || "")}</div>${vsPaid == null ? "" : `<div class="why ${cls(vsPaid)}">${spct(vsPaid, 1)} vs paid</div>`}</td>
+        <td>${user}<div>${tags}</div></td>
+        <td class="why">${drop ? esc(x.reason) + (x.detail ? `<div>${esc(x.detail)}</div>` : "") : "kept" + (x.role ? ` · ${x.role === "top5" ? "top 5" : x.role}` : "")}</td>
+        <td class="why">${ok ? `<span class="yes">✓ ${isBuy ? "can sell into" : "can buy from"}</span>` : esc(x.agent)}</td></tr>`; }).join("");
+    return `<div><h3>${title}</h3><div class="why">${sum.n_raw} listed → ${sum.n_valid} valid → ${sum.n_kept} kept by the fence · median ${k4(sum.median)} · ${res}</div>
+      <div class="tablewrap" style="max-height:480px"><table><thead><tr><th class="num">keys</th><th>account</th><th>engine</th><th>agent</th></tr></thead>
+      <tbody>${body || `<tr data-no><td colspan="4" class="why">no listings</td></tr>`}</tbody></table></div></div>`; };
+  el.innerHTML = pager + `<div class="why" style="margin-top:6px">scraped ${esc((b.t || "").slice(0, 19).replace("T", " "))} UTC · key = ${b.key_ref ?? "–"} ref · sell-now bid ${k4(p.tbid)}${ref(p.tbid)}${p.tbid_user ? ` from ${esc(p.tbid_user)}` : ""}</div>
+    <div class="bookgrid">${side("Buy orders: who would buy it from us", b.buys, b.buy, true)}${side("Sell orders: who sells it", b.sells, b.sell, false)}</div>
+    <p class="note">engine = the book rules the model reads (fence, duplicates, flags); agent = whether the agent could trade with that listing (bot + instant, trusted, trade URL known) and, if not, why.</p>`;
+  wire();
+}
+addEventListener("keydown", e => {
+  if (ui.tab !== "books" || !ui.bkStep || (document.activeElement && document.activeElement.matches("input, select"))) return;
+  if (e.key === "ArrowLeft") ui.bkStep(-1); else if (e.key === "ArrowRight") ui.bkStep(1);
+});
+setInterval(async () => {   // the agent checks what it holds every ~10 min: refresh the tab each minute
+  if (ui.tab !== "books" || document.hidden) return;
+  await loadAgent(); HIST.forEach(h => { h.at = 0; }); softRender();
+}, 60000);
+
+const TABS = {overview, agent: agentTab, books: booksTab, economy, scrape, features};
+function setTab(t) { ui.tab = t; store.set("tab", t); render(true); scrollTo(0, 0); }
+// A redraw replaces the whole tab, and its charts measure the page while it is half drawn: a page
+// briefly shorter than where you have scrolled makes the browser pull the scroll up (to the top, on a
+// long tab -- every refresh). So a redraw holds the page at its height until the new one has filled
+// in (a book or a series still loading included) and puts the scroll back. fresh = a new tab: from the top.
+let holdT = null;
+function redraw(fn, fresh) {
+  const m = $("#main"), y = scrollY;
+  clearTimeout(holdT);
+  m.style.minHeight = fresh ? "" : m.offsetHeight + "px";
+  fn();
+  if (!fresh && scrollY !== y) scrollTo(0, y);
+  holdT = setTimeout(() => { m.style.minHeight = ""; }, 3000);
+}
+function render(fresh) {
+  document.querySelectorAll("#tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === ui.tab));
+  const m = $("#main");
+  hideTip();
+  redraw(() => {
+    if (ui.tab === "books") booksTab(m);
+    else if (!D || !D.passes || !D.passes.t.length) m.innerHTML = `<div class="empty">Nothing summarised yet: the first summary of the books is running (it reads every stored book once). This page fills in on its own.</div>`;
+    else (TABS[ui.tab] || overview)(m);
+  }, fresh === true);
+}
+document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => setTab(b.dataset.tab)));
+
+// ---------- theme
+const theme = store.get("theme", null);
+if (theme) document.documentElement.dataset.theme = theme;
+$("#theme").addEventListener("click", () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.dataset.theme = dark ? "light" : "dark"; store.set("theme", document.documentElement.dataset.theme); render();
+});
+
+// ---------- live updates
+async function load() {
+  D = await (await fetch("/api/data", {cache: "no-store"})).json();
+  T = D && D.passes ? D.passes.t.map(x => Date.parse(x)) : [];
+  render();
+}
+async function poll() {
+  let s;
+  try { s = await (await fetch("/api/state", {cache: "no-store"})).json(); }
+  catch (e) { $("#dot").className = "dot err"; $("#statusText").textContent = "server not reachable"; return; }
+  const busy = s.doing && s.doing.startsWith("summarising");
+  $("#dot").className = "dot" + (s.error ? " err" : busy || s.doing === "starting" ? " busy" : "");
+  const book = s.fresh && s.fresh.book ? Date.parse(s.fresh.book.replace(" ", "T") + (/[zZ+]/.test(s.fresh.book.slice(10)) ? "" : "Z")) : null;
+  $("#statusText").textContent = s.error ? `error: ${s.error} (retrying)` :
+    `${busy ? s.doing + "… · " : ""}newest book ${book ? ago(book) : "–"} · checked ${new Date().toLocaleTimeString([], {hour: "2-digit", minute: "2-digit"})}`;
+  if (s.version !== version) { version = s.version; if (version > 0) await load(); else render(); }
+}
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+poll(); setInterval(poll, 20000);
+loadAgent().then(() => { if (D && (ui.tab === "agent" || ui.tab === "overview")) render(); });
+setInterval(async () => {
+  if (!["agent", "overview"].includes(ui.tab) || document.hidden) return;
+  await loadAgent();
+  const typing = document.activeElement && document.activeElement.matches("input");
+  if (!limitsDirty && !typing && tip.style.display !== "block") render();
+}, 10000);
+</script>
+</body>
+</html>

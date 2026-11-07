@@ -1,0 +1,65 @@
+// The PC <-> VM link: the PC pulls new rows of trading_app.db from the collector.
+//
+// The server (server.py) runs on the VM next to the collector and listens on
+// 127.0.0.1 only; the PC reaches it through an SSH tunnel (pull.py opens one), so
+// no port but SSH is open to the internet and SSH does the auth and encryption.
+//
+// The protocol is table-generic on purpose: a row is a list of SQLite values, so a
+// new column or table on the collector side needs no change here.
+//
+// COPY: this file and its stubs exist in both repos -- trading/sync (pull.py, PC)
+// and azure-scraper/sync (server.py, VM). Edit and regenerate in both.
+//
+// Regenerate the Python stubs after editing (from sync/):
+//   python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. dbsync.proto
+syntax = "proto3";
+
+package dbsync;
+
+service DbSync {
+  // The source DB's schema and each table's high-water mark.
+  rpc Schema(SchemaRequest) returns (SchemaReply);
+  // The rows of one table the replica does not have yet, in batches.
+  rpc Pull(PullRequest) returns (stream RowBatch);
+}
+
+message SchemaRequest {}
+
+message TableInfo {
+  string name = 1;
+  string create_sql = 2;      // CREATE TABLE as sqlite_master stores it
+  int64 max_rowid = 3;        // 0 for an empty table
+}
+
+message SchemaReply {
+  repeated TableInfo tables = 1;
+  repeated string index_sql = 2;  // CREATE INDEX statements
+}
+
+message PullRequest {
+  string table = 1;
+  // Exactly one cursor applies, by the table's sync mode (tables.py):
+  int64 after_rowid = 2;      // "append": rows with rowid > after_rowid
+  string since = 3;           // "changed": rows whose change column >= since
+                              // "full": every row (both left empty)
+}
+
+// One SQLite value. SQLite has exactly these five storage classes.
+message Value {
+  oneof v {
+    bool null = 1;
+    sint64 i = 2;
+    double f = 3;
+    string s = 4;
+    bytes b = 5;
+  }
+}
+
+message Row {
+  repeated Value cells = 1;
+}
+
+message RowBatch {
+  repeated string columns = 1;   // the same on every batch of one Pull
+  repeated Row rows = 2;
+}

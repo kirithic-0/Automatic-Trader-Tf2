@@ -1,0 +1,7 @@
+{
+  "name": "automatic-trader-tf2",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TF2 order-book trader: the collector (collector/, sync/), the analysis engine (Python, backpack/) and the Steam agent (Node, agent/)",
+  "license": "MIT"
+}
