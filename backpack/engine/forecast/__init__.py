@@ -17,7 +17,7 @@ Definitions (the defaults below; each is a parameter):
 - **universe** -- a two-sided book with 0 <= (ask1 - bid1) / bid1 <= MAX_SPREAD: the ask
   is only a little above the bids. Crossed books (ask below bid, ~3% of books) are out:
   why they exist is not in the KB.
-- **level** -- `bid_med`, the median of all fenced bids (engine.book), *held*: the lower of
+- **level** -- `bid_med`, the median of the fenced bids among the top FENCE_DEPTH (engine.book), *held*: the lower of
   its value at a pass and at the series' next pass (<= HOLD_GAP_H later), so a level that
   lasts one pass only never counts.
 - **up_<H>h** -- 1 when the held level reaches ask1 * (1 + TARGET) at some pass in

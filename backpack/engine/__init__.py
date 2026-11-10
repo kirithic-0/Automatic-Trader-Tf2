@@ -1,10 +1,10 @@
-"""Analysis engine: the read side of trading.db (Unique + Strange only).
+"""Analysis engine: the read side of the collection database (Unique + Strange only).
 
     from engine import load_panel, label_events, build_features
     panel = load_panel()                       # one row per snapshot, read rules applied
     frame = build_features(label_events(panel, horizons=(24,)))
 
-The read rules live in engine.book and nowhere else. trading.db is opened
+The read rules live in engine.book and nowhere else. The db is opened
 read-only; derived numbers are never written back to it (only to the
 disposable engine_cache/). Screens: `python -m engine --help` from backpack/.
 See docs/code-base.md ("Analysis engine").

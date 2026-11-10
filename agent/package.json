@@ -4,6 +4,9 @@
   "private": true,
   "description": "Stage 6 taker agent (Node, runs on the user's PC): the live agent (run.js), the PC authenticator, the ledger.",
   "type": "commonjs",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "scripts": {
     "setup-2fa": "node setup_2fa.js",
     "code": "node code.js",

@@ -5,7 +5,7 @@
 // applies from the next cycle, no restart; a file that will not read keeps the last good one.
 //   max_open_positions     held positions (opening / open / closing) at once
 //   max_keys_in_play       keys the held positions cost, plus this buy (first run: 2)
-//   max_trade_keys         one buy's price (the rule already keeps it under 1 key)
+//   max_trade_keys         one buy's price (the rule keeps it under 2 keys: AGENT_RULE max_price)
 //   max_new_buys_per_pass  buys a pass may start (the model's own k is 10)
 //   win_window, min_win_rate  no new buys once fewer than min_win_rate of the last
 //                          win_window sales won (20 and 0.75). It stays stopped (the file

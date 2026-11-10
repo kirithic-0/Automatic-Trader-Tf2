@@ -18,7 +18,9 @@ MAX_NEW_BUYS = 10        # at most this many new buys a pass (simulate's k; the 
 # account held metal only -- it now holds keys too, and the agent's key<->metal rebalance
 # keeps both, agent/lib/convert.js). The replay of the 0.7 / 1-key rule on stored books
 # (engine replay, data-model.md "The agent's rule on stored books"): 10-16 -> 10-24, 61
-# trades, 92% won, +4.2% a trade; the new rule is not replayed yet.
+# trades, 92% won, +4.2% a trade -- on the days the rule was chosen on. The 0.65 / 2-key rule,
+# replayed on an untouched 6-day lockbox (10-29 -> 11-03, scored once): 79 sold, 80% won,
+# +2.59% a trade, fills assumed.
 AGENT_RULE = dict(min_exp_ret=None, min_p_up=0.65, min_price=MIN_PRICE, max_price=2.0, rank="p_up")
 MAX_SPREAD = 0.05        # universe: the ask at most this far above the best bid
 TRAIN_MAX_SPREAD = 0.10  # the models learn from a wider band (more data, measured better)
